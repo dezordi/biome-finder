@@ -1,0 +1,62 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: freshwater-water-euk
+kingdom: eukaryotes                # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Environmental:Aquatic:Freshwater"
+mgnify_lineages: 
+  - "root:Environmental:Aquatic:Freshwater:Lake"
+  - "root:Environmental:Aquatic:Freshwater:Lotic"
+  - "root:Environmental:Aquatic:Freshwater:Lentic"
+  - "root:Environmental:Aquatic:Freshwater:Pond"
+mgnify_lineages_exclude:
+  - "root:Environmental:Aquatic:Freshwater:Lentic:Sediment"
+  - "root:Environmental:Aquatic:Freshwater:Lotic:Sediment"
+  - "root:Environmental:Aquatic:Freshwater:Pond:Sediment"
+envo_include: 
+  - ENVO:00000021  # freshwater lake
+  - ENVO:01000599  # river water
+  - ENVO:01000253  # freshwater river biome
+envo_exclude:
+  - ENVO:00002007  # sediment
+gold_ecosystems: 
+  - "Environmental > Aquatic > Freshwater"
+metagenome_taxa: 
+  - "freshwater metagenome"
+  - "lake water metagenome"
+  - "lake metagenome"
+  - "riverine metagenome"
+  - "pond metagenome"
+keywords_include: 
+  - "lake water"
+  - "river water"
+  - "freshwater"
+keywords_exclude: 
+  - "marine"
+  - "estuar"
+  - "brackish"
+  - "saline"
+  - "soda lake"
+  - "sediment"
+  - "wastewater"
+  - "groundwater"
+  - "drinking water"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: none
+host_tax_id: 
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: 
+  - "freshwater water"
+notes: "DRAFT for survey. Eukaryote counterpart of freshwater-water-prok. Scope to decide: lakes + rivers together or separate; ponds/reservoirs; groundwater excluded. Lentic/Lotic/Pond :Sediment subtrees excluded (freshwater-sediment). glacier lake metagenome (Ice:Glacial lake) not included."

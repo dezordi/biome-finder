@@ -1,0 +1,50 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: peatland-wetland-euk
+kingdom: eukaryotes                # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Environmental:Terrestrial:Soil:Wetlands"
+mgnify_lineages: 
+  - "root:Environmental:Terrestrial:Soil:Wetlands"
+  - "root:Environmental:Aquatic:Freshwater:Wetlands"
+mgnify_lineages_exclude:
+  - "root:Environmental:Terrestrial:Soil:Wetlands:Permafrost"
+envo_include: []
+envo_exclude:
+  - ENVO:00000134  # permafrost
+gold_ecosystems: 
+  - "Environmental > Terrestrial > Wetlands"  # TODO verify
+metagenome_taxa: 
+  - "peat metagenome"
+  - "wetland metagenome"
+  - "bog metagenome"
+  - "marsh metagenome"
+keywords_include: 
+  - "peat"
+  - "bog"
+  - "fen"
+  - "wetland"
+keywords_exclude: 
+  - "marine"
+  - "mangrove"
+  - "salt marsh"
+  - "constructed wetland"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: none
+host_tax_id: 
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: 
+  - "soil"
+notes: "DRAFT for survey. Eukaryote counterpart of peatland-wetland-prok. Most MGnify wetland samples sit under Aquatic:Freshwater:Wetlands (Bog alone 1545), not Terrestrial:Soil:Wetlands (59): catalogue_biome to decide. Salt marsh excluded. Wetlands:Permafrost excluded (permafrost biome)."

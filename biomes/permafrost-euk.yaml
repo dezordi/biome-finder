@@ -1,0 +1,40 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: permafrost-euk
+kingdom: eukaryotes                # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Environmental:Terrestrial:Soil:Permafrost"
+mgnify_lineages: 
+  - "root:Environmental:Terrestrial:Soil:Permafrost"
+  - "root:Environmental:Terrestrial:Soil:Wetlands:Permafrost"
+mgnify_lineages_exclude: []
+envo_include: []
+envo_exclude: []
+gold_ecosystems: 
+  - "Environmental > Terrestrial > Soil > Permafrost"  # TODO verify
+metagenome_taxa: 
+  - "permafrost metagenome"
+keywords_include: 
+  - "permafrost"
+  - "active layer"
+keywords_exclude: 
+  - "thermokarst lake water"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: none
+host_tax_id: 
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: 
+  - "soil"
+notes: "DRAFT for survey. Eukaryote counterpart of permafrost-prok. Decide: permafrost only, or with active layer / thermokarst sediments."

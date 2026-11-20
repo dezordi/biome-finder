@@ -1,0 +1,52 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: freshwater-sediment-euk
+kingdom: eukaryotes                # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Environmental:Aquatic:Freshwater:Sediment"
+mgnify_lineages: 
+  - "root:Environmental:Aquatic:Freshwater:Sediment"
+  - "root:Environmental:Aquatic:Freshwater:Lentic:Sediment"
+  - "root:Environmental:Aquatic:Freshwater:Lotic:Sediment"
+  - "root:Environmental:Aquatic:Freshwater:Pond:Sediment"
+mgnify_lineages_exclude: []
+envo_include: 
+  - ENVO:00000546  # lake sediment
+envo_exclude:
+  - ENVO:03000033  # marine sediment
+gold_ecosystems: 
+  - "Environmental > Aquatic > Freshwater > Sediment"  # TODO verify
+metagenome_taxa: 
+  - "freshwater sediment metagenome"
+keywords_include: 
+  - "lake sediment"
+  - "river sediment"
+  - "freshwater sediment"
+  - "lacustrine"
+keywords_exclude: 
+  - "marine"
+  - "estuar"
+  - "brackish"
+  - "saline"
+  - "soda lake"
+  - "mangrove"
+  - "wastewater"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: none
+host_tax_id: 
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: 
+  - "freshwater sediment"
+notes: "DRAFT for survey. Eukaryote counterpart of freshwater-sediment-prok. MGnify splits freshwater sediment over 5 nodes; Wetlands:Sediment left to peatland-wetland. 'sediment metagenome' (generic, mixes marine) left out on purpose; check its counts separately if needed."

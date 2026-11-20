@@ -64,8 +64,12 @@ biome.yaml ─────┤ survey ─► search ─► samples.tsv ◄──�
 ## 2. Step 0 — Choosing a biome: `survey`
 
 ```bash
-biome-finder survey --biomes biomes/*.yaml --out survey.tsv
+biome-finder survey --biomes biomes/*.yaml --out survey/
 ```
+
+The output is a folder: `survey.tsv` (one row per biome × metagenome taxon, plus TOTAL),
+`biomes/<name>/records.tsv` and `studies.tsv` (every counted record, and per-study
+counts) and `report.html` (an interactive dashboard: all catalogues, or one at a time).
 
 For each biome config, it reports:
 
@@ -93,16 +97,20 @@ written record of the biome decision.
 
 ```yaml
 name: freshwater-lake-sediment
+kingdom: prokaryotes                  # prokaryotes | eukaryotes: MGnify builds one catalogue per kingdom (pipeline --kingdom)
 mgnify_catalogue: ""                 # set for updates, e.g. soil-v1-0
 catalogue_biome: "root:Environmental:Aquatic:Freshwater:Sediment"   # → genomes-catalogue-pipeline --biome (must exist in MGnify)
-mgnify_lineages:
+mgnify_lineages:                     # whole subtrees count (each lineage plus all its descendants)
   - "root:Environmental:Aquatic:Freshwater:Sediment"
-envo_include:                        # illustrative: verify all IDs in OLS when writing the real file
+mgnify_lineages_exclude: []         # subtrees removed from the scope, e.g. a :Sediment child of a water lineage
+envo_include:                        # term + all its ENVO subclasses; illustrative: verify all IDs in OLS
   - ENVO:00000546                    # lake sediment
   - ENVO:01000252                    # freshwater lake biome (+ env_medium = sediment)
+envo_exclude:                        # subtrees removed (term + subclasses), checked on every env_* field
+  - ENVO:03000033                    # marine sediment
 gold_ecosystems:                     # GOLD 5-level paths (also used by awesome-mag)
   - "Environmental > Aquatic > Freshwater > Lake > Sediment"
-metagenome_taxa: ["freshwater sediment metagenome", "lake sediment metagenome"]
+metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
 keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor", "enrichment",
                    "mesocosm", "microcosm", "spiked", "mock", "synthetic", "control"]
@@ -150,7 +158,7 @@ the LLM key.
 | ENA cross-references | Publications describing or citing a record; assemblies/MAGs derived from a read study | `/ena/xref/rest/` |
 | NCBI | WGS sets, BioSample attributes and package (MIMAG/MISAG/MIGS), BioProject, `assembly_summary_genbank.txt` (GCA by BioSample, `excluded_from_refseq`) | E-utilities + FTP |
 | NCBI Taxonomy | Monthly `new_taxdump_YYYY-MM-01.zip` from `pub/taxonomy/taxdump_archive/` (`merged.dmp`, `delnodes.dmp`, lineages) | FTP |
-| MGnify API | Existing catalogues and their genomes (update dedup); studies with a curated MGnify biome lineage; MGnify-generated ERZ assemblies | `/metagenomics/api/v1/` |
+| MGnify API | Existing catalogues and their genomes (update dedup); studies with a curated MGnify biome lineage; MGnify-generated ERZ assemblies | `/metagenomics/api/v2/genomes/catalogues/` for catalogues (v1 lists outdated versions); `/metagenomics/api/v1/` for biomes and studies |
 | Metalog (EMBL) | Manually curated sample metadata, where available | Downloads |
 | JGI GOLD | Curated 5-level ecosystem classification of BioSamples | Public data export |
 | Europe PMC | Paper metadata, open-access full text (Methods, Data availability), accession text-mining | REST API |
@@ -570,7 +578,7 @@ import them.
 ## 5. CLI and layout
 
 ```
-biome-finder survey          --biomes biomes/*.yaml                                → survey.tsv
+biome-finder survey          --biomes biomes/*.yaml --out survey/                  → survey.tsv, biomes/*/, report.html
 biome-finder search          --biome biomes/X.yaml [--llm] [--composition [all]] [--since] [--taxdump] [--papers-dir]  → samples.tsv
 biome-finder prepare         --samples samples.tsv --biome biomes/X.yaml --out <dir>  → catalogue/, binning/, assembly/ (+ updates samples.tsv)
 biome-finder link-assemblies --samples samples.tsv --miassembler-outdir <path> --out <dir>  → binning/<study>/ (+ updates samples.tsv)
@@ -581,7 +589,9 @@ biome_finder/
 ├── PROPOSAL.md  CLAUDE.md
 ├── pyproject.toml            # console_script: biome-finder
 ├── biome_finder/
-│   ├── cli.py                # argparse subcommands
+│   ├── cli.py                # click group: entry point only, no command logic
+│   ├── survey.py  search.py  prepare.py  link_assemblies.py   # one module per command
+│   ├── report.py             # survey dashboard (Panel + plotly → report.html)
 │   ├── sources.py            # ENA, NCBI, MGnify, Europe PMC, GOLD, taxdump (split when it grows)
 │   ├── score.py              # biome evidence, data-type evidence, tiers
 │   └── llm.py                # optional LLM extraction (imported only with --llm)
@@ -591,7 +601,8 @@ biome_finder/
 └── tests/
 ```
 
-Dependencies: Python ≥ 3.11, `requests` and `PyYAML`, plus `xmltodict` and `retry` for the
+Dependencies: Python ≥ 3.11, `click`, `requests` and `PyYAML`; pandas, Panel and plotly for the
+survey dashboard; plus `xmltodict` and `retry` for the
 vendored scripts. Optional extras: the LLM SDK and `pypdf` (text extraction from provided
 PDFs). Trapiche is an **external tool** in its own environment, called through its CLI
 (`--trapiche-bin`); it is never installed into biome-finder.

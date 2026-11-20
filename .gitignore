@@ -9,3 +9,5 @@ survey.tsv
 samples.tsv
 samples.tsv.bak
 papers/
+docs/_build/
+survey/

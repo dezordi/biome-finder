@@ -1,0 +1,6 @@
+/* The Read the Docs theme keeps table cells on one line (nowrap), which forces a horizontal
+   scrollbar on wide tables. Let cells wrap instead. */
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}

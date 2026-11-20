@@ -1,0 +1,46 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: rice-rhizosphere-prok
+kingdom: prokaryotes               # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Host-associated:Plants:Rhizosphere"
+mgnify_lineages: 
+  - "root:Host-associated:Plants:Rhizosphere"
+mgnify_lineages_exclude: []
+envo_include: []
+envo_exclude: []
+gold_ecosystems: 
+  - "Host-associated > Plants > Rhizosphere"  # TODO verify
+metagenome_taxa: 
+  - "rhizosphere metagenome"
+  - "root metagenome"
+  - "plant metagenome"
+  - "soil metagenome"
+  - "rice paddy metagenome"
+keywords_include: 
+  - "rhizosphere"
+keywords_exclude: 
+  - "bulk soil"
+  - "endosphere"
+  - "phyllosphere"
+  - "paddy water"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: "Oryza sativa"
+host_tax_id: 4530
+host_keywords: ["rice", "Oryza"]   # free-text host matches (ENA host field)
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: 
+  - "soil"
+notes: "DRAFT for survey. host matched by tax ID or free-text keywords (rice/Oryza). plant/soil metagenome rows include non-rhizosphere compartments."

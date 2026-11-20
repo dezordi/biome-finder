@@ -29,11 +29,18 @@ The tool is **biome-agnostic**: environmental or host-associated, any biome. All
 knowledge lives in `biomes/*.yaml`. Never add biome-specific logic to the code; if a biome
 needs something new, add a generic config field.
 
+The tool will feed MGnify, so **scoping follows MGnify's conventions**: one catalogue per
+kingdom (`<biome>-prok` / `<biome>-euk`) and one per host (e.g. barley, maize and tomato
+rhizosphere are separate catalogues, never a merged "crop rhizosphere"). When in doubt, mirror
+an existing MGnify catalogue (API v2 `/genomes/catalogues/`).
+
 Organism scope: Bacteria, Archaea and microbial Eukaryotes. Excluded by default, using the
 resolved NCBI lineage: Viruses (10239), Metazoa (33208), Tracheophyta (58023) and
 Phaeophyceae (2870), plus plasmids and other MGEs, and organelle genomes. All macroalgae
 are out of scope; red and green ones are judged per genus during curation. A biome config
-can extend the list (`exclude_taxa_extra`).
+extends the exclusions (`exclude_taxa_extra`). Like MGnify, catalogues are per kingdom:
+every config sets `kingdom: prokaryotes` (Bacteria + Archaea) or `kingdom: eukaryotes`,
+which is also the genomes-catalogue-pipeline `--kingdom`.
 
 Read `PROPOSAL.md` for the design. Its Appendix A holds the curation guidelines, Appendix B
 the reference ENA/NCBI queries, and Appendix C the MGnify catalogue snapshot. Don't
@@ -41,7 +48,7 @@ duplicate them here.
 
 ## Layout
 
-- `biome_finder/`: package (`cli.py`, `sources.py`, `score.py`, `llm.py`)
+- `biome_finder/`: package. `cli.py` is the click entry point only; each command's logic lives in its own module (`survey.py`, `search.py`, `prepare.py`, …), with shared clients in `sources.py`, scoring in `score.py` and the LLM in `llm.py`
 - `biomes/*.yaml`: one config per biome (lineages, GOLD/ENVO terms, host/body site,
   include/exclude keywords, data types, notes). The file is the biome decision. Read it with
   `yaml.safe_load`.
@@ -53,6 +60,9 @@ duplicate them here.
 - `.claude/skills/`: `define-biome`, `check-paper-data`, `curate-sample`. They are
   self-contained, each with its own copy of the rules it needs. When a rule in
   PROPOSAL.md changes, also update the skills that copy it (mapping in PROPOSAL.md §8).
+- `docs/`: Sphinx docs (Read the Docs theme), one page per command. When a command's
+  behaviour or output columns change, update its page. Check with
+  `sphinx-build -W -b html docs docs/_build/html`.
 - `vendor/`: `fetch_ena.py`, `fetch_ncbi.py` and helpers copied **unchanged** from
   EBI-Metagenomics/genomes-catalogue-pipeline (pinned commit in `vendor/README.md`, GPL-3.0).
   Run them as subprocesses; don't import, edit or reformat them. Also holds the IndicPiper
@@ -64,7 +74,7 @@ duplicate them here.
 # system python is 3.9 (no PyYAML); use the project venv (Python 3.12 via uv)
 uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[test]"
 # then run tools as .venv/bin/biome-finder / .venv/bin/python -m pytest
-biome-finder survey  --biomes biomes/*.yaml
+biome-finder survey  --biomes biomes/*.yaml --out survey/   # survey.tsv, biomes/*/, report.html
 biome-finder search  --biome biomes/<name>.yaml --out samples.tsv \
                      [--llm] [--composition [all]] [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] \
                      [--papers-dir papers/]
@@ -99,6 +109,9 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
   level or in the paper, or tissue / whole individuals of a wild-collected organism.
 - ENA `env_tax:*` / `env_geo:*` sample tags are derived from the organism's taxonomy, so
   they are never biome evidence.
+- Biome scope is **subtrees minus excluded subtrees**: `mgnify_lineages` minus
+  `mgnify_lineages_exclude`, `envo_include` minus `envo_exclude` (ENVO terms include their
+  subclasses). An excluded term in any `env_*` field rules the sample out.
 - Marine water at the coast counts as ocean (`…:Marine:Oceanic`). Encode it per biome with
   `lineage_equivalents`, never in code.
   SAGs are not isolates and are excluded by default. Exclude type strains with no
@@ -209,9 +222,15 @@ the test.
 
 ## Code style
 
-- Keep it small: stdlib first (`argparse`, `csv`, `json`), plus `requests` and `PyYAML`. The
-  optional extras are the LLM SDK and `pypdf`. Ask before adding any other dependency. No
-  pandas unless a real need comes up.
+- Keep it small: stdlib first (`csv`, `json`), plus `click`, `requests` and `PyYAML`. The
+  optional extras are the LLM SDK and `pypdf`. Ask before adding any other dependency.
+- Reports: `report.py` only, with pandas, Panel and plotly. The survey report is one
+  self-contained dashboard (`report.html`): Panel components (tabs, cards, `Number`
+  indicators, `Tabulator` tables) holding one plotly express figure per card, saved with
+  `save(embed=True, max_opts=<catalogues>)` so every catalogue view is precomputed and the
+  file works without a server. Panel templates can't be embedded, so don't use them. Use
+  the libraries' own features; never write HTML by hand. Command logic stays stdlib; no
+  pandas outside reports.
 - `samples.tsv` has a fixed column order (PROPOSAL.md §3.6). Columns are added, never
   renamed, because curators keep spreadsheets of past runs.
 - Every non-trivial rule in `score.py` has a test, ideally using a real accession from the
@@ -220,5 +239,5 @@ the test.
 
 ## Git
 
-- Commit or push only when asked. Run outputs (`survey.tsv`, `samples.tsv`, `papers/`) are
+- Commit or push only when asked. Run outputs (`survey/`, `samples.tsv`, `papers/`) are
   git-ignored.

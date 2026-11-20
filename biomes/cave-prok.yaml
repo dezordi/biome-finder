@@ -1,0 +1,38 @@
+# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
+# refine with the define-biome skill before using it for search.
+name: cave-prok
+kingdom: prokaryotes               # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: ""
+catalogue_biome: "root:Environmental:Terrestrial"
+mgnify_lineages: []
+mgnify_lineages_exclude: []
+envo_include: []
+envo_exclude: []
+gold_ecosystems: 
+  - "Environmental > Terrestrial > Cave"  # TODO verify
+metagenome_taxa: 
+  - "cave metagenome"
+keywords_include: 
+  - "cave sediment"
+  - "cave"
+keywords_exclude: 
+  - "cave water"
+  - "marine"
+  - "enrichment"
+  - "mesocosm"
+  - "microcosm"
+  - "spiked"
+  - "mock"
+  - "synthetic"
+  - "control"
+host: none
+host_tax_id: 
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents: {}
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: []
+notes: "DRAFT for survey. Stretch candidate; no MGnify cave lineage found (catalogue_biome is a placeholder: root:Environmental:Terrestrial has no cave child; the only cave node is Freshwater:Groundwater:Cave water, 7 samples)."

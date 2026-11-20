@@ -1,0 +1,45 @@
+# Eukaryote marine-water config, used to validate the curate-sample skill against marine_euks.tsv.
+# Not a real biome decision; delete or replace with a define-biome output.
+name: marine-water-euk
+kingdom: eukaryotes                # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
+mgnify_catalogue: "marine-eukaryotes-v1-0"    # MGnify Marine eukaryote catalogue (water + sediment)
+catalogue_biome: "root:Environmental:Aquatic:Marine"
+mgnify_lineages:
+  - "root:Environmental:Aquatic:Marine"
+  - "root:Environmental:Aquatic:Marine:Coastal"
+  - "root:Environmental:Aquatic:Marine:Oceanic"
+mgnify_lineages_exclude:                # every sediment subtree under Marine
+  - "root:Environmental:Aquatic:Marine:Sediment"
+  - "root:Environmental:Aquatic:Marine:Coastal:Sediment"
+  - "root:Environmental:Aquatic:Marine:Cold seeps:Sediment"
+  - "root:Environmental:Aquatic:Marine:Hydrothermal vents:Sediment"
+  - "root:Environmental:Aquatic:Marine:Intertidal zone:Sediment"
+  - "root:Environmental:Aquatic:Marine:Neritic zone:Sediment"
+  - "root:Environmental:Aquatic:Marine:Neritic zone:Oil-contaminated sediment"
+  - "root:Environmental:Aquatic:Marine:Oceanic:Sediment"
+  - "root:Environmental:Aquatic:Marine:Oceanic:Oil-contaminated sediments"
+  - "root:Environmental:Aquatic:Marine:Oil-contaminated sediment"
+  - "root:Environmental:Aquatic:Marine:Wetlands:Sediment"
+envo_include:
+  - ENVO:00000447                    # marine biome
+  - ENVO:00002150                    # coastal sea water
+  - ENVO:01001966                    # coastal ocean water
+envo_exclude:
+  - ENVO:00002007  # sediment (all subclasses: marine, coastal, lake…)
+gold_ecosystems:
+  - "Environmental > Aquatic > Marine"   # TODO verify
+metagenome_taxa: ["marine metagenome", "seawater metagenome", "marine plankton metagenome"]
+keywords_include: ["seawater", "sea water", "ocean", "marine plankton", "coastal water"]
+keywords_exclude: ["estuar", "brackish", "mangrove", "freshwater", "lake", "river", "soil",
+                   "sediment", "enrichment", "mesocosm", "spiked", "mock", "synthetic", "control"]
+host: none
+contaminant_reference: ""
+data_types: [mag, isolate, contigs, reads]
+exclude_taxa_extra: []
+lineage_equivalents:
+  "root:Environmental:Aquatic:Marine:Coastal": "root:Environmental:Aquatic:Marine:Oceanic"
+ncbi_isolate_query: ""
+ncbi_wgs_terms: []
+min_study_yield: 0.3
+indicpiper_habitats: ["marine water"]
+notes: "Marine water column, coastal and oceanic. Estuarine/brackish and sediment excluded. Eukaryotic genomes only. Test config."

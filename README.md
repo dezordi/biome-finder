@@ -41,18 +41,32 @@ Count the public data available for candidate biomes (MAGs, assemblies and read 
 metagenome taxon, plus what is new since an existing MGnify catalogue):
 
 ```bash
-biome-finder survey --biomes biomes/*.yaml --out survey.tsv
+biome-finder survey --biomes biomes/*.yaml --out survey/
 ```
+
+The `survey/` folder gets `survey.tsv` (totals), `biomes/<name>/records.tsv` and
+`studies.tsv` (details) and `report.html` (interactive dashboard: all catalogues, or one at a time).
 
 Survey counts are proxies based on the metagenome taxon the submitter declared, not curated
 results. API responses are cached in `~/.cache/biome-finder/` (override with
 `BIOME_FINDER_CACHE`).
 
+## Documentation
+
+Sphinx sources are in `docs/` (Read the Docs theme, configured by `.readthedocs.yaml`).
+Build locally:
+
+```bash
+uv pip install --python .venv/bin/python -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
+```
+
 ## Layout
 
-- `biome_finder/`: the package
+- `biome_finder/`: the package (`cli.py` entry point, one module per command)
 - `biomes/`: one YAML config per biome (the current files are drafts)
 - `benchmark/`: manually curated tables used to calibrate scoring
+- `docs/`: Sphinx documentation
 - `vendor/`: fetch scripts copied unchanged from genomes-catalogue-pipeline
 - `.claude/skills/`: Claude Code skills for defining biomes, checking papers and curating
   samples

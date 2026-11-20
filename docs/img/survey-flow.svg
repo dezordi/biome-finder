@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1194" viewBox="0 0 1000 1194" font-family="Helvetica, Arial, sans-serif">
+  <title>How a biome config drives biome-finder survey (example: marine-water-euk)</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7a8a99"/></marker>
+    <style>
+      .yaml text:not(.badge-text), text.comment { font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 13px; fill: #1f2933; }
+      .key { fill: #0b4f8a; font-weight: bold; }
+      text.comment { fill: #8a94a0; }
+      .badge { fill: #0072B2; }
+      .badge-text { fill: #ffffff; font-size: 11px; font-weight: bold; text-anchor: middle; font-family: Helvetica, Arial, sans-serif; }
+      .box { fill: #f5f8fb; stroke: #c9d6e3; stroke-width: 1.2; }
+      .title { font-size: 15px; font-weight: bold; fill: #1f2933; }
+      .detail { font-size: 12.5px; fill: #44515e; }
+      .example { font-size: 12.5px; fill: #0072B2; font-style: italic; }
+      .heading { font-size: 14px; font-weight: bold; fill: #1f2933; }
+      .flow { stroke: #7a8a99; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="1000" height="1194" fill="#ffffff"/>
+  <text x="20" y="38" class="heading">biomes/marine-water-euk.yaml</text>
+  <rect x="20" y="52" width="430" height="422" rx="6" fill="#fbfbf8" stroke="#d8d8cf"/>
+  <g class="yaml">
+    <text x="36" y="82"><tspan class="key">name:</tspan> marine-water-euk</text>
+    <circle cx="430" cy="77" r="9" class="badge"/><text x="430" y="81" class="badge-text">8</text>
+    <text x="36" y="104"><tspan class="key">kingdom:</tspan> eukaryotes</text>
+    <circle cx="430" cy="99" r="9" class="badge"/><text x="430" y="103" class="badge-text">7</text>
+    <circle cx="408" cy="99" r="9" class="badge"/><text x="408" y="103" class="badge-text">4</text>
+    <circle cx="386" cy="99" r="9" class="badge"/><text x="386" y="103" class="badge-text">1</text>
+    <text x="36" y="126"><tspan class="key">mgnify_catalogue:</tspan> marine-eukaryotes-v1-0</text>
+    <circle cx="430" cy="121" r="9" class="badge"/><text x="430" y="125" class="badge-text">1</text>
+    <text x="36" y="148"><tspan class="key">mgnify_lineages:</tspan></text>
+    <circle cx="430" cy="143" r="9" class="badge"/><text x="430" y="147" class="badge-text">2</text>
+    <text x="36" y="170">&#160;&#160;- root:Environmental:Aquatic:Marine</text>
+    <text x="36" y="192"><tspan class="key">mgnify_lineages_exclude:</tspan></text>
+    <circle cx="430" cy="187" r="9" class="badge"/><text x="430" y="191" class="badge-text">2</text>
+    <text x="36" y="214">&#160;&#160;- root:…:Marine:Sediment&#160;&#160;# +10</text>
+    <text x="36" y="236"><tspan class="key">metagenome_taxa:</tspan></text>
+    <circle cx="430" cy="231" r="9" class="badge"/><text x="430" y="235" class="badge-text">3</text>
+    <text x="36" y="258">&#160;&#160;- marine metagenome</text>
+    <text x="36" y="280">&#160;&#160;- seawater metagenome</text>
+    <text x="36" y="302">&#160;&#160;- marine plankton metagenome</text>
+    <text x="36" y="324"><tspan class="key">exclude_taxa_extra:</tspan> []</text>
+    <circle cx="430" cy="319" r="9" class="badge"/><text x="430" y="323" class="badge-text">4</text>
+    <text x="36" y="346"><tspan class="key">host_tax_id:</tspan></text>
+    <circle cx="430" cy="341" r="9" class="badge"/><text x="430" y="345" class="badge-text">5</text>
+    <text x="36" y="368"><tspan class="key">host_keywords:</tspan> []</text>
+    <circle cx="430" cy="363" r="9" class="badge"/><text x="430" y="367" class="badge-text">5</text>
+    <text x="36" y="412" class="comment"># not used by survey (search, prepare):</text>
+    <text x="36" y="434" class="comment"># catalogue_biome, envo_*, keywords_*,</text>
+    <text x="36" y="456" class="comment"># gold_ecosystems, data_types, …</text>
+  </g>
+  <text x="490" y="38" class="heading">survey steps</text>
+  <rect x="490" y="52" width="490" height="86" rx="6" class="box"/>
+  <circle cx="512" cy="74" r="11" class="badge"/><text x="512" y="78" class="badge-text">1</text>
+  <text x="532" y="79" class="title">Catalogue context</text>
+  <text x="512" y="102" class="detail">MGnify API v2 · type must match kingdom · last update = cutoff</text>
+  <text x="512" y="124" class="example">eukaryotes ✓ · 74 species · “new” = public since 2026-10-27</text>
+  <line x1="735" y1="138" x2="735" y2="154" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="158" width="490" height="86" rx="6" class="box"/>
+  <circle cx="512" cy="180" r="11" class="badge"/><text x="512" y="184" class="badge-text">2</text>
+  <text x="532" y="185" class="title">MGnify samples in scope</text>
+  <text x="512" y="208" class="detail">lineage subtrees minus the excluded subtrees</text>
+  <text x="512" y="230" class="example">43,788 Marine − 6,663 sediment = 37,125 samples</text>
+  <line x1="735" y1="244" x2="735" y2="260" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="264" width="490" height="106" rx="6" class="box"/>
+  <circle cx="512" cy="286" r="11" class="badge"/><text x="512" y="290" class="badge-text">3</text>
+  <text x="532" y="291" class="title">Metagenome taxa → tax IDs</text>
+  <text x="512" y="314" class="detail">each name → its ENA tax ID → three searches and one output row</text>
+  <text x="512" y="336" class="example">marine metagenome → 408172 · seawater metagenome → 1561972</text>
+  <text x="512" y="356" class="example">marine plankton metagenome → 1874687</text>
+  <line x1="735" y1="370" x2="735" y2="386" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="390" width="490" height="124" rx="6" class="box"/>
+  <circle cx="512" cy="412" r="11" class="badge"/><text x="512" y="416" class="badge-text">4</text>
+  <text x="532" y="417" class="title">ENA searches, per taxon</text>
+  <text x="512" y="440" class="detail">MAGs, bins: only the config&#x27;s kingdom, minus the excluded taxa</text>
+  <text x="512" y="458" class="detail">assemblies, runs: whole communities; eukaryote subset in step 7</text>
+  <text x="512" y="480" class="example">61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 6)</text>
+  <text x="512" y="500" class="example">1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)</text>
+  <line x1="735" y1="514" x2="735" y2="530" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="534" width="490" height="122" rx="6" class="box"/>
+  <circle cx="512" cy="556" r="11" class="badge"/><text x="512" y="560" class="badge-text">5</text>
+  <text x="532" y="561" class="title">Host filter (host-associated biomes only)</text>
+  <text x="512" y="584" class="detail">runs, assemblies: sample host tax ID = host_tax_id,</text>
+  <text x="512" y="602" class="detail">or the free-text host contains one of host_keywords</text>
+  <text x="512" y="620" class="detail">MAGs: derived from → source samples; kept only if all pass</text>
+  <text x="512" y="642" class="example">not applied: marine water has no host</text>
+  <line x1="735" y1="656" x2="735" y2="672" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="676" width="490" height="124" rx="6" class="box"/>
+  <circle cx="512" cy="698" r="11" class="badge"/><text x="512" y="702" class="badge-text">6</text>
+  <text x="532" y="703" class="title">MGnify&#x27;s own data</text>
+  <text x="512" y="726" class="detail">records in MGnify&#x27;s ENA studies (center contains EMG), plus the</text>
+  <text x="512" y="744" class="detail">bins MGnify made from this biome&#x27;s samples (binned metagenome)</text>
+  <text x="512" y="766" class="example">38 MAGs + 235 bins, all eukaryote (259 of the catalogue&#x27;s 294 MAGs)</text>
+  <text x="512" y="786" class="example">1,238 eukaryote assemblies (of 6,112 MGnify assemblies)</text>
+  <line x1="735" y1="800" x2="735" y2="816" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="820" width="490" height="142" rx="6" class="box"/>
+  <circle cx="512" cy="842" r="11" class="badge"/><text x="512" y="846" class="badge-text">7</text>
+  <text x="532" y="847" class="title">Kingdom evidence (assemblies, runs)</text>
+  <text x="512" y="870" class="detail">genome: the sample already yielded a genome of the kingdom</text>
+  <text x="512" y="888" class="detail">text: the project&#x27;s title or description names the kingdom</text>
+  <text x="512" y="906" class="detail">eukaryotes need one of these; prokaryotes skip only euk-only projects</text>
+  <text x="512" y="928" class="example">eukaryote assemblies: 1,647 (411 genome · 1,236 text) of 20,349</text>
+  <text x="512" y="948" class="example">eukaryote runs ≥ 1 M: 3,418 (134 genome · 3,284 text) of 22,741</text>
+  <line x1="735" y1="962" x2="735" y2="978" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="982" width="490" height="106" rx="6" class="box"/>
+  <circle cx="512" cy="1004" r="11" class="badge"/><text x="512" y="1008" class="badge-text">8</text>
+  <text x="532" y="1009" class="title">Summarize</text>
+  <text x="512" y="1032" class="detail">per taxon + TOTAL · runs ≥ 1 M reads · paired / long · new</text>
+  <text x="512" y="1054" class="example">eukaryote: 61 MAGs · 235 MGnify bins · 1,647 assemblies</text>
+  <text x="512" y="1074" class="example">3,418 runs ≥ 1 M (86,294 Gbases) · 12 new since the cutoff</text>
+  <line x1="735" y1="1088" x2="735" y2="1104" class="flow" marker-end="url(#arrow)"/>
+  <rect x="490" y="1108" width="490" height="62" rx="6" fill="#1f2933"/>
+  <text x="735" y="1134" fill="#ffffff" font-size="13.5px" font-weight="bold" text-anchor="middle">survey/</text>
+  <text x="735" y="1156" fill="#dfe6ee" font-size="12.5px" text-anchor="middle">survey.tsv · biomes/&lt;name&gt;/records.tsv, studies.tsv · report.html</text>
+</svg>

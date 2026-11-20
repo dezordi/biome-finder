@@ -1,0 +1,21 @@
+[project]
+name = "biome-finder"
+version = "0.1.0"
+description = "Organize INSDC sample/genome inputs for biome-specific genome catalogue workflows"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = ["click>=8", "PyYAML>=6", "pandas>=2", "plotly>=5.20", "panel>=1.4"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+docs = ["sphinx>=7", "sphinx-rtd-theme>=2", "myst-parser>=3"]
+
+[project.scripts]
+biome-finder = "biome_finder.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["biome_finder"]
