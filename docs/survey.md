@@ -2,7 +2,7 @@
 
 `survey` counts the public data available in ENA for one or more candidate biomes, before
 any curation: MAGs, metagenome assemblies, read runs and the genomes MGnify produced. ENA is
-part of INSDC, so runs and WGS genomes submitted to NCBI or DDBJ are included (see limitations).
+part of INSDC, so runs and WGS genomes submitted to NCBI or DDBJ are expected included (see [Limitations](#limitations)).
 
 MGnify is used for context (existing catalogues and their genomes, and samples per biome lineage).
 Use the survey to decide which biomes are worth building a catalogue for, and whether an existing
