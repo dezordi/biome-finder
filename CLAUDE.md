@@ -48,7 +48,7 @@ duplicate them here.
 
 ## Layout
 
-- `biome_finder/`: package. `cli.py` is the click entry point only; each command's logic lives in its own module (`survey.py`, `search.py`, `prepare.py`, …), with shared clients in `sources.py`, scoring in `score.py` and the LLM in `llm.py`
+- `biome_finder/`: package. `cli.py` is the click entry point only; each command's logic lives in its own module (`survey.py`, `search.py`, `prepare.py`, …). Third-party services are reached only through `clients/`, one module per service (`ena.py`, `mgnify.py`, later `ncbi.py`, `europepmc.py`, …, sharing the cached HTTP layer in `clients/http.py`), with their query and response models in `models.py`. Constants shared by commands (ENA data-layer clauses, organism scope) live in `constants.py`. Scoring lives in `score.py` and the LLM in `llm.py`
 - `biomes/*.yaml`: one config per biome (lineages, GOLD/ENVO terms, host/body site,
   include/exclude keywords, data types, notes). The file is the biome decision. Read it with
   `yaml.safe_load`.
@@ -231,6 +231,17 @@ the test.
   file works without a server. Panel templates can't be embedded, so don't use them. Use
   the libraries' own features; never write HTML by hand. Command logic stays stdlib; no
   pandas outside reports.
+- Third-party calls are typed. Every service gets a section in `models.py`: a query model
+  where the query has structure (e.g. `EnaSearch`; a plain identifier otherwise) and frozen
+  dataclasses for what comes back, with only the fields biome-finder uses (for ENA they are
+  also the fields requested). Clients return `Response[T]`: the HTTP status (404 = not found;
+  other errors raise) plus the data. Parse rows with `from_row`, and keep a source's value
+  as `str` when its format varies (ENA `lat` can be `;`-joined). Command modules never call
+  `clients/http.py` or build URLs themselves.
+- Type hints on every function. Check with
+  `uvx mypy --ignore-missing-imports --python-executable .venv/bin/python biome_finder`.
+- Format with black (`uvx black biome_finder tests docs`, line length 120 in `pyproject.toml`).
+  Keep comments few: explain *why* in the function's docstring, not in loose comments.
 - `samples.tsv` has a fixed column order (PROPOSAL.md §3.6). Columns are added, never
   renamed, because curators keep spreadsheets of past runs.
 - Every non-trivial rule in `score.py` has a test, ideally using a real accession from the

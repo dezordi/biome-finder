@@ -3,48 +3,99 @@
 The numbers come from a survey run; edit STEPS when they change, then:
     python docs/img/survey_flow.py docs/img/survey-flow.svg
 """
+
 import sys
 from html import escape
 
 STEPS = [  # (title, detail lines, example lines)
-    ("Catalogue context", ["MGnify API v2 · type must match kingdom · last update = cutoff"],
-     ["eukaryotes ✓ · 74 species · “new” = public since 2026-10-27"]),
-    ("MGnify samples in scope", ["lineage subtrees minus the excluded subtrees"],
-     ["43,788 Marine − 6,663 sediment = 37,125 samples"]),
-    ("Metagenome taxa → tax IDs", ["each name → its ENA tax ID → three searches and one output row"],
-     ["marine metagenome → 408172 · seawater metagenome → 1561972", "marine plankton metagenome → 1874687"]),
-    ("ENA searches, per taxon", ["MAGs, bins: only the config's kingdom, minus the excluded taxa",
-                                 "assemblies, runs: whole communities; eukaryote subset in step 7"],
-     ["61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 6)",
-      "1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)"]),
-    ("Host filter (host-associated biomes only)", ["runs, assemblies: sample host tax ID = host_tax_id,",
-                                                    "or the free-text host contains one of host_keywords",
-                                                    "MAGs: derived from → source samples; kept only if all pass"],
-     ["not applied: marine water has no host"]),
-    ("MGnify's own data", ["records in MGnify's ENA studies (center contains EMG), plus the",
-                           "bins MGnify made from this biome's samples (binned metagenome)"],
-     ["38 MAGs + 235 bins, all eukaryote (259 of the catalogue's 294 MAGs)",
-      "1,238 eukaryote assemblies (of 6,112 MGnify assemblies)"]),
-    ("Kingdom evidence (assemblies, runs)", ["genome: the sample already yielded a genome of the kingdom",
-                                              "text: the project's title or description names the kingdom",
-                                              "eukaryotes need one of these; prokaryotes skip only euk-only projects"],
-     ["eukaryote assemblies: 1,647 (411 genome · 1,236 text) of 20,349",
-      "eukaryote runs ≥ 1 M: 3,418 (134 genome · 3,284 text) of 22,741"]),
-    ("Summarize", ["per taxon + TOTAL · runs ≥ 1 M reads · paired / long · new"],
-     ["eukaryote: 61 MAGs · 235 MGnify bins · 1,647 assemblies",
-      "3,418 runs ≥ 1 M (86,294 Gbases) · 12 new since the cutoff"]),
+    (
+        "Catalogue context",
+        ["MGnify API v2 · type must match kingdom · last update = cutoff"],
+        ["eukaryotes ✓ · 74 species · “new” = public since 2026-10-27"],
+    ),
+    (
+        "MGnify samples in scope",
+        ["lineage subtrees minus the excluded subtrees"],
+        ["43,788 Marine − 6,663 sediment = 37,125 samples"],
+    ),
+    (
+        "Metagenome taxa → tax IDs",
+        ["each name → its ENA tax ID → three searches and one output row"],
+        ["marine metagenome → 408172 · seawater metagenome → 1561972", "marine plankton metagenome → 1874687"],
+    ),
+    (
+        "ENA searches, per taxon",
+        [
+            "MAGs, bins: only the config's kingdom, minus the excluded taxa",
+            "assemblies, runs: whole communities; eukaryote subset in step 7",
+        ],
+        [
+            "61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 6)",
+            "1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)",
+        ],
+    ),
+    (
+        "Host filter (host-associated biomes only)",
+        [
+            "runs, assemblies: sample host tax ID = host_tax_id,",
+            "or the free-text host contains one of host_keywords",
+            "MAGs: derived from → source samples; kept only if all pass",
+        ],
+        ["not applied: marine water has no host"],
+    ),
+    (
+        "MGnify's own data",
+        [
+            "records in MGnify's ENA studies (center contains EMG), plus the",
+            "bins MGnify made from this biome's samples (binned metagenome)",
+        ],
+        [
+            "38 MAGs + 235 bins, all eukaryote (259 of the catalogue's 294 MAGs)",
+            "1,238 eukaryote assemblies (of 6,112 MGnify assemblies)",
+        ],
+    ),
+    (
+        "Kingdom evidence (assemblies, runs)",
+        [
+            "genome: the sample already yielded a genome of the kingdom",
+            "text: the project's title or description names the kingdom",
+            "eukaryotes need one of these; prokaryotes skip only euk-only projects",
+        ],
+        [
+            "eukaryote assemblies: 1,647 (411 genome · 1,236 text) of 20,349",
+            "eukaryote runs ≥ 1 M: 3,418 (134 genome · 3,284 text) of 22,741",
+        ],
+    ),
+    (
+        "Summarize",
+        ["per taxon + TOTAL · runs ≥ 1 M reads · paired / long · new"],
+        [
+            "eukaryote: 61 MAGs · 235 MGnify bins · 1,647 assemblies",
+            "3,418 runs ≥ 1 M (86,294 Gbases) · 12 new since the cutoff",
+        ],
+    ),
 ]
 YAML = [  # (text, key?, badges)
-    ("name:", " marine-water-euk", [8]), ("kingdom:", " eukaryotes", [1, 4, 7]),
-    ("mgnify_catalogue:", " marine-eukaryotes-v1-0", [1]), ("mgnify_lineages:", "", [2]),
-    (None, "  - root:Environmental:Aquatic:Marine", []), ("mgnify_lineages_exclude:", "", [2]),
-    (None, "  - root:…:Marine:Sediment  # +10", []), ("metagenome_taxa:", "", [3]),
-    (None, "  - marine metagenome", []), (None, "  - seawater metagenome", []),
-    (None, "  - marine plankton metagenome", []), ("exclude_taxa_extra:", " []", [4]),
-    ("host_tax_id:", "", [5]), ("host_keywords:", " []", [5]),
+    ("name:", " marine-water-euk", [8]),
+    ("kingdom:", " eukaryotes", [1, 4, 7]),
+    ("mgnify_catalogue:", " marine-eukaryotes-v1-0", [1]),
+    ("mgnify_lineages:", "", [2]),
+    (None, "  - root:Environmental:Aquatic:Marine", []),
+    ("mgnify_lineages_exclude:", "", [2]),
+    (None, "  - root:…:Marine:Sediment  # +10", []),
+    ("metagenome_taxa:", "", [3]),
+    (None, "  - marine metagenome", []),
+    (None, "  - seawater metagenome", []),
+    (None, "  - marine plankton metagenome", []),
+    ("exclude_taxa_extra:", " []", [4]),
+    ("host_tax_id:", "", [5]),
+    ("host_keywords:", " []", [5]),
 ]
-COMMENTS = ["# not used by survey (search, prepare):", "# catalogue_biome, envo_*, keywords_*,",
-            "# gold_ecosystems, data_types, …"]
+COMMENTS = [
+    "# not used by survey (search, prepare):",
+    "# catalogue_biome, envo_*, keywords_*,",
+    "# gold_ecosystems, data_types, …",
+]
 GAP, LINE, X, W = 20, 18, 490, 490
 
 
@@ -53,8 +104,10 @@ def text(x, y, s, cls, extra=""):
 
 
 def badge(cx, cy, n, r=9):
-    return (f'<circle cx="{cx}" cy="{cy}" r="{r}" class="badge"/>'
-            f'<text x="{cx}" y="{cy + 4}" class="badge-text">{n}</text>')
+    return (
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" class="badge"/>'
+        f'<text x="{cx}" y="{cy + 4}" class="badge-text">{n}</text>'
+    )
 
 
 out, y = [], 52
@@ -65,17 +118,25 @@ for i, (title, details, examples) in enumerate(STEPS, 1):
     out.append(text(X + 42, y + 27, title, "title"))
     ty = y + 50
     for d in details:
-        out.append(text(X + 22, ty, d, "detail")); ty += LINE
+        out.append(text(X + 22, ty, d, "detail"))
+        ty += LINE
     ty += 4
     for e in examples:
-        out.append(text(X + 22, ty, e, "example")); ty += 20
+        out.append(text(X + 22, ty, e, "example"))
+        ty += 20
     y += h
-    out.append(f'<line x1="{X + W // 2}" y1="{y}" x2="{X + W // 2}" y2="{y + GAP - 4}" class="flow" marker-end="url(#arrow)"/>')
+    out.append(
+        f'<line x1="{X + W // 2}" y1="{y}" x2="{X + W // 2}" y2="{y + GAP - 4}" class="flow" marker-end="url(#arrow)"/>'
+    )
     y += GAP
 out.append(f'<rect x="{X}" y="{y}" width="{W}" height="62" rx="6" fill="#1f2933"/>')
-out.append(f'<text x="{X + W // 2}" y="{y + 26}" fill="#ffffff" font-size="13.5px" font-weight="bold" text-anchor="middle">survey/</text>')
-out.append(f'<text x="{X + W // 2}" y="{y + 48}" fill="#dfe6ee" font-size="12.5px" text-anchor="middle">'
-           f'{escape("survey.tsv · biomes/<name>/records.tsv, studies.tsv · report.html")}</text>')
+out.append(
+    f'<text x="{X + W // 2}" y="{y + 26}" fill="#ffffff" font-size="13.5px" font-weight="bold" text-anchor="middle">survey/</text>'
+)
+out.append(
+    f'<text x="{X + W // 2}" y="{y + 48}" fill="#dfe6ee" font-size="12.5px" text-anchor="middle">'
+    f'{escape("survey.tsv · biomes/<name>/records.tsv, studies.tsv · report.html")}</text>'
+)
 height = y + 62 + 24
 
 left = []
@@ -88,10 +149,11 @@ for key, rest, badges in YAML:
     ly += 22
 ly += 22
 for c in COMMENTS:
-    left.append(text(36, ly, c, "comment")); ly += 22
+    left.append(text(36, ly, c, "comment"))
+    ly += 22
 box_h = ly - 52 - 4
 
-svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}" viewBox="0 0 1000 {height}" font-family="Helvetica, Arial, sans-serif">
+svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}" viewBox="0 0 1000 {height}" font-family="Helvetica, Arial, sans-serif">
   <title>How a biome config drives biome-finder survey (example: marine-water-euk)</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7a8a99"/></marker>
@@ -118,5 +180,5 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}"
   <text x="490" y="38" class="heading">survey steps</text>
   {chr(10).join("  " + l for l in out).strip()}
 </svg>
-'''
+"""
 open(sys.argv[1], "w").write(svg)

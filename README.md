@@ -63,7 +63,7 @@ sphinx-build -b html docs docs/_build/html
 
 ## Layout
 
-- `biome_finder/`: the package (`cli.py` entry point, one module per command)
+- `biome_finder/`: the package (`cli.py` entry point, one module per command, third-party clients in `clients/` with their typed models in `models.py`)
 - `biomes/`: one YAML config per biome (the current files are drafts)
 - `benchmark/`: manually curated tables used to calibrate scoring
 - `docs/`: Sphinx documentation

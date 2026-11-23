@@ -592,7 +592,9 @@ biome_finder/
 │   ├── cli.py                # click group: entry point only, no command logic
 │   ├── survey.py  search.py  prepare.py  link_assemblies.py   # one module per command
 │   ├── report.py             # survey dashboard (Panel + plotly → report.html)
-│   ├── sources.py            # ENA, NCBI, MGnify, Europe PMC, GOLD, taxdump (split when it grows)
+│   ├── models.py             # query and response dataclasses, one section per third-party service
+│   ├── clients/              # one module per service: http.py (cache, retries), ena.py, mgnify.py,
+│   │                         #   later ncbi.py, europepmc.py, gold.py, taxdump.py, sandpiper.py
 │   ├── score.py              # biome evidence, data-type evidence, tiers
 │   └── llm.py                # optional LLM extraction (imported only with --llm)
 ├── biomes/*.yaml             # one config per biome = the biome decision
@@ -828,7 +830,7 @@ process this tool automates. The code enforces these rules (see `CLAUDE.md`).
 
 ## Appendix B — Reference queries
 
-`sources.py` reproduces these queries programmatically. They're kept here as the
+`clients/` reproduces these queries programmatically. They're kept here as the
 reference for tests and for manual checks.
 
 ### B.1 ENA MAG layer

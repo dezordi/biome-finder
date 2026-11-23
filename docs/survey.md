@@ -412,3 +412,6 @@ runs), `first_public` and `last_public`, then the same counts as `survey.tsv` (`
 - Responses are cached on disk for 7 days in `~/.cache/biome-finder/` (override with the
   `BIOME_FINDER_CACHE` environment variable), so repeated runs are fast.
 - Requests are retried with backoff on HTTP 429, 5xx and network errors.
+- MGnify genome catalogues come from API v2, because v1 lists outdated versions. Biome sample
+  counts come from API v1: v2 lists the biome tree without sample counts, and its samples
+  endpoint holds only part of MGnify's samples.
