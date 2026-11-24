@@ -64,7 +64,7 @@
   <text x="512" y="334" class="detail">MAGs, bins: only the config&#x27;s kingdom, minus the excluded taxa</text>
   <text x="512" y="352" class="detail">assemblies, runs: whole communities; eukaryote subset in step 6</text>
   <text x="512" y="374" class="example">61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 5)</text>
-  <text x="512" y="394" class="example">1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)</text>
+  <text x="512" y="394" class="example">4,616 eukaryote assemblies (of 20,349) · 5,346 runs (of 30,542)</text>
   <line x1="735" y1="408" x2="735" y2="424" class="flow" marker-end="url(#arrow)"/>
   <rect x="490" y="428" width="490" height="122" rx="6" class="box"/>
   <circle cx="512" cy="450" r="11" class="badge"/><text x="512" y="454" class="badge-text">4</text>
@@ -80,23 +80,23 @@
   <text x="512" y="620" class="detail">records in MGnify&#x27;s ENA studies (center contains EMG), plus the</text>
   <text x="512" y="638" class="detail">bins MGnify made from this biome&#x27;s samples (binned metagenome)</text>
   <text x="512" y="660" class="example">38 MAGs + 235 bins, all eukaryote (259 of the catalogue&#x27;s 294 MAGs)</text>
-  <text x="512" y="680" class="example">1,238 eukaryote assemblies (of 6,112 MGnify assemblies)</text>
+  <text x="512" y="680" class="example">1,356 eukaryote assemblies (of 6,112 MGnify assemblies)</text>
   <line x1="735" y1="694" x2="735" y2="710" class="flow" marker-end="url(#arrow)"/>
   <rect x="490" y="714" width="490" height="142" rx="6" class="box"/>
   <circle cx="512" cy="736" r="11" class="badge"/><text x="512" y="740" class="badge-text">6</text>
   <text x="532" y="741" class="title">Kingdom evidence (assemblies, runs)</text>
   <text x="512" y="764" class="detail">genome: the sample already yielded a genome of the kingdom</text>
-  <text x="512" y="782" class="detail">text: the project&#x27;s title or description names the kingdom</text>
+  <text x="512" y="782" class="detail">text: one of the sample&#x27;s projects names the kingdom</text>
   <text x="512" y="800" class="detail">eukaryotes need one of these; prokaryotes skip only euk-only projects</text>
-  <text x="512" y="822" class="example">eukaryote assemblies: 1,647 (411 genome · 1,236 text) of 20,349</text>
-  <text x="512" y="842" class="example">eukaryote runs ≥ 1 M: 3,418 (134 genome · 3,284 text) of 22,741</text>
+  <text x="512" y="822" class="example">eukaryote assemblies: 4,616 (411 genome · 4,205 text) of 20,349</text>
+  <text x="512" y="842" class="example">eukaryote runs ≥ 1 M: 3,427 (134 genome · 3,293 text) of 22,741</text>
   <line x1="735" y1="856" x2="735" y2="872" class="flow" marker-end="url(#arrow)"/>
   <rect x="490" y="876" width="490" height="106" rx="6" class="box"/>
   <circle cx="512" cy="898" r="11" class="badge"/><text x="512" y="902" class="badge-text">7</text>
   <text x="532" y="903" class="title">Summarize</text>
   <text x="512" y="926" class="detail">per taxon + TOTAL · runs ≥ 1 M reads · paired / long · new</text>
-  <text x="512" y="948" class="example">eukaryote: 61 MAGs · 235 MGnify bins · 1,647 assemblies</text>
-  <text x="512" y="968" class="example">3,418 runs ≥ 1 M (86,294 Gbases) · 12 new since the cutoff</text>
+  <text x="512" y="948" class="example">eukaryote: 61 MAGs · 235 MGnify bins · 4,616 assemblies</text>
+  <text x="512" y="968" class="example">3,427 runs ≥ 1 M (86,629 Gbases) · 12 new since the cutoff</text>
   <line x1="735" y1="982" x2="735" y2="998" class="flow" marker-end="url(#arrow)"/>
   <rect x="490" y="1002" width="490" height="62" rx="6" fill="#1f2933"/>
   <text x="735" y="1028" fill="#ffffff" font-size="13.5px" font-weight="bold" text-anchor="middle">survey/</text>

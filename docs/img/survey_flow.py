@@ -26,7 +26,7 @@ STEPS = [  # (title, detail lines, example lines)
         ],
         [
             "61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 5)",
-            "1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)",
+            "4,616 eukaryote assemblies (of 20,349) · 5,346 runs (of 30,542)",
         ],
     ),
     (
@@ -46,27 +46,27 @@ STEPS = [  # (title, detail lines, example lines)
         ],
         [
             "38 MAGs + 235 bins, all eukaryote (259 of the catalogue's 294 MAGs)",
-            "1,238 eukaryote assemblies (of 6,112 MGnify assemblies)",
+            "1,356 eukaryote assemblies (of 6,112 MGnify assemblies)",
         ],
     ),
     (
         "Kingdom evidence (assemblies, runs)",
         [
             "genome: the sample already yielded a genome of the kingdom",
-            "text: the project's title or description names the kingdom",
+            "text: one of the sample's projects names the kingdom",
             "eukaryotes need one of these; prokaryotes skip only euk-only projects",
         ],
         [
-            "eukaryote assemblies: 1,647 (411 genome · 1,236 text) of 20,349",
-            "eukaryote runs ≥ 1 M: 3,418 (134 genome · 3,284 text) of 22,741",
+            "eukaryote assemblies: 4,616 (411 genome · 4,205 text) of 20,349",
+            "eukaryote runs ≥ 1 M: 3,427 (134 genome · 3,293 text) of 22,741",
         ],
     ),
     (
         "Summarize",
         ["per taxon + TOTAL · runs ≥ 1 M reads · paired / long · new"],
         [
-            "eukaryote: 61 MAGs · 235 MGnify bins · 1,647 assemblies",
-            "3,418 runs ≥ 1 M (86,294 Gbases) · 12 new since the cutoff",
+            "eukaryote: 61 MAGs · 235 MGnify bins · 4,616 assemblies",
+            "3,427 runs ≥ 1 M (86,629 Gbases) · 12 new since the cutoff",
         ],
     ),
 ]

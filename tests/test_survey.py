@@ -150,7 +150,9 @@ def test_studies_count_records_and_samples_per_route():
     contig |= {"first_public": "2023-01-01", "route": "covered", "covered_by": "S1"}
     rows = {r["study_accession"]: r for r in studies(runs + mags + [contig])}
     assert rows["S1"]["runs_to_assemble"] == 2 and rows["S1"]["samples_to_assemble"] == 1
-    assert rows["S4"]["runs_to_assemble"] == 1 and rows["S4"]["samples_to_assemble"] == 0  # SA1 counts in S1
+    assert (
+        rows["S4"]["runs_to_assemble"] == 1 and rows["S4"]["samples_to_assemble"] == 0
+    )  # SA1 counts in S1, the larger
     assert rows["S1"]["mags_to_add"] == 1  # M2 is already in the catalogue
     assert "S2" not in rows  # its only run is covered, so it has nothing on a route
     assert rows["S3"]["assemblies_with_mags"] == 1 and rows["S3"]["mags_studies"] == "S1"
@@ -229,6 +231,27 @@ def test_kingdom_match_rules(monkeypatch):
     prok = data()
     survey.kingdom_evidence({"kingdom": "prokaryotes"}, [], [], prok)
     assert [r["kingdom_match"] for r in prok] == [False, True, True, True]  # only euk-only studies drop
+
+
+def test_kingdom_evidence_is_shared_by_a_samples_records(monkeypatch):
+    from biome_finder import survey
+
+    texts = [EnaStudy("S_euk", "Picoeukaryote and protist diversity", ""), EnaStudy("S_none", "lake water", "")]
+    monkeypatch.setattr(ena, "studies", ok(texts))
+    monkeypatch.setattr(ena, "derived_from", ok({}))
+    monkeypatch.setattr(ena, "sample_hosts", ok([]))
+
+    def data():
+        return [{"study_accession": s, "sample_accession": "X", "read_count": 5_000_000} for s in ("S_euk", "S_none")]
+
+    euk = data()
+    survey.kingdom_evidence({"kingdom": "eukaryotes"}, [], [], euk)
+    assert [r["kingdom_evidence"] for r in euk] == ["study_text", "study_text"]  # one verdict per sample
+    assert euk[1]["kingdom_terms"] == "eukaryot;protist"
+    prok = data()
+    survey.kingdom_evidence({"kingdom": "prokaryotes"}, [], [], prok)
+    assert [r["kingdom_evidence"] for r in prok] == ["none", "none"]  # the neutral study outweighs other_kingdom
+    assert all(r["kingdom_match"] for r in prok)
 
 
 def test_routes_each_sample_enters_at_its_most_processed_data(monkeypatch):

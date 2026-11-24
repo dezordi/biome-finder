@@ -2,7 +2,7 @@
 
 import csv
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict
 from pathlib import Path
@@ -93,6 +93,7 @@ RECORD_COLUMNS = [
     "assembly_software",
     "kingdom_evidence",
     "kingdom_match",
+    "kingdom_terms",
     "in_catalogue",
     "route",
     "scope_taxon",
@@ -301,10 +302,14 @@ def genome_samples(genomes: list[Record]) -> dict[str, set[str]]:
 
 
 def kingdom_evidence(cfg: Config, genomes: list[Record], contigs: list[Record], runs: list[Record]) -> None:
-    """Label each assembly and run with its evidence for the config's kingdom, strongest first:
-    `genome` (its sample already yielded a MAG or bin of that kingdom), `study_text`,
-    `other_kingdom`, `none`. `kingdom_match`: eukaryotes need `genome` or `study_text`;
-    prokaryotes, being everywhere, count unless the study is about eukaryotes only.
+    """Label each assembly and run with its sample's evidence for the config's kingdom: `genome`
+    (the sample already yielded a MAG or bin of that kingdom), `study_text`, `none`,
+    `other_kingdom` (`study_kingdom`). The sample is the unit: its records, in whatever studies,
+    all take the strongest evidence found among them, in that order, so a sample gets one
+    verdict, and a neutral study outweighs one that names only the other kingdom.
+    `kingdom_terms` lists the kingdom's terms found in those studies' texts. `kingdom_match`:
+    eukaryotes need `genome` or `study_text`; prokaryotes, being everywhere, count unless the
+    sample's studies are about eukaryotes only.
 
     Then `route`, the step each counted record would enter at (a sample enters at its most
     processed data): assemblies whose sample has no genome yet are to `bin`; runs ≥ 1 M reads
@@ -312,13 +317,18 @@ def kingdom_evidence(cfg: Config, genomes: list[Record], contigs: list[Record], 
     `covered_by` lists the studies of the genomes made from a record's sample."""
     texts = {s.study_accession: s.text for s in ena.studies({r["study_accession"] for r in contigs + runs}).data}
     from_genomes = genome_samples(genomes)
+    rank = ["genome", "study_text", "none", "other_kingdom"]
+    best: dict[str, str] = {}
+    terms: dict[str, set[str]] = defaultdict(set)
+    for r in contigs + runs:
+        s, text = r["sample_accession"], texts.get(r["study_accession"], "")
+        found = "genome" if s in from_genomes else study_kingdom(text, cfg["kingdom"])
+        best[s] = min(best.get(s, found), found, key=rank.index)
+        terms[s] |= {t.lower() for t in KINGDOM_TERMS[cfg["kingdom"]].findall(text)}
     for r in contigs + runs:
         r["covered_by"] = ";".join(sorted(from_genomes.get(r["sample_accession"], ())))
-        r["kingdom_evidence"] = (
-            "genome"
-            if r["sample_accession"] in from_genomes
-            else study_kingdom(texts.get(r["study_accession"], ""), cfg["kingdom"])
-        )
+        r["kingdom_evidence"] = best[r["sample_accession"]]
+        r["kingdom_terms"] = ";".join(sorted(terms[r["sample_accession"]]))
         r["kingdom_match"] = (
             r["kingdom_evidence"] in ("genome", "study_text")
             if cfg["kingdom"] == "eukaryotes"
@@ -444,7 +454,8 @@ def studies(records: list[Record]) -> list[dict[str, Any]]:
     bins not in the catalogue, → genomes-catalogue-pipeline), assemblies to bin (→ genomes-generation)
     and runs to assemble (→ miassembler), with the samples behind the last two. Feeds the
     dashboard's largest-projects chart. A sample with records on a route in several studies
-    counts in the first of them (by accession), so the sample columns add up to survey.tsv.
+    counts once, in the study with the most records on that route (ties by accession), so the
+    sample columns add up to survey.tsv.
 
     An assembly to bin never shares a sample with a genome (that would make it `covered`), so
     `assemblies_with_mags` counts the study's assemblies left out because their sample already
@@ -455,10 +466,11 @@ def studies(records: list[Record]) -> list[dict[str, Any]]:
         covered = r["data_type"] == "contigs" and r.get("route") == "covered"
         if add or covered or r.get("route") in ("bin", "assemble"):
             by_study[r["study_accession"]].append(r)
+    on_route = [r for r in records if r.get("route") in ("bin", "assemble")]
+    size = Counter((r["route"], r["study_accession"]) for r in on_route)
     owner: dict[tuple[str, str], str] = {}
-    for r in sorted(records, key=lambda r: r["study_accession"]):
-        if r.get("route") in ("bin", "assemble"):
-            owner.setdefault((r["route"], r["sample_accession"]), r["study_accession"])
+    for r in sorted(on_route, key=lambda r: (-size[(r["route"], r["study_accession"])], r["study_accession"])):
+        owner.setdefault((r["route"], r["sample_accession"]), r["study_accession"])
 
     def owned(rows: list[Record]) -> int:
         return len(

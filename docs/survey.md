@@ -53,11 +53,13 @@ Six rules apply on top of the config:
   sample (`derived from`) is a sample of the biome's assemblies or runs; it takes that
   sample's metagenome taxon. Bins from other submitters are not counted.
 - **Kingdom evidence**: assemblies and runs are whole communities with no organism, so
-  each one gets a `kingdom_evidence` label, strongest first: `genome` (its sample already
-  yielded a MAG or MGnify bin of the config's kingdom; eukaryote configs only), `study_text`
-  (the project's title or description names the kingdom, e.g. *protist*, *diatom*, *18S*
-  for eukaryotes; *bacteria*, *archaea*, *16S* for prokaryotes), `other_kingdom` (it names
-  only the other kingdom) or `none`. A eukaryote config counts only `genome` and
+  each one gets its sample's `kingdom_evidence`, strongest first: `genome` (the sample already
+  yielded a MAG or MGnify bin of the config's kingdom), `study_text` (the title or description
+  of one of the sample's projects names the kingdom, e.g. *protist*, *diatom*, *18S* for
+  eukaryotes; *bacteria*, *archaea*, *16S* for prokaryotes), `none`, or `other_kingdom`
+  (its projects name only the other kingdom). The sample is the unit: all its assemblies and
+  runs, in whatever project, share one verdict, and `kingdom_terms` lists the terms found. A
+  eukaryote config counts only `genome` and
   `study_text` (`assemblies_kingdom`, `runs_1m_kingdom`); a prokaryote config counts everything
   but `other_kingdom`, since prokaryotes are in nearly every metagenome. This is a coarse
   filter; the eukaryotic share of each run is for `search` to measure.
@@ -100,22 +102,22 @@ host: none
 5. **MGnify's own data.** 38 of the MAGs sit in MGnify's own studies, and MGnify binned
    another **235** eukaryote genomes from this biome's samples. Together they cover 259 of
    the 294 MAGs in the current catalogue (the rest come from samples outside the three
-   taxa). 6,112 of the assemblies were made by MGnify, 1,238 of them with eukaryote evidence
+   taxa). 6,112 of the assemblies were made by MGnify, 1,356 of them with eukaryote evidence
    (step 6).
-6. **Kingdom evidence.** Of the 20,349 assemblies, 1,647 have eukaryote evidence (411
-   because their sample already yielded a eukaryote genome, 1,236 from the project text);
-   of the 22,741 runs with ≥ 1 M reads, 3,418 do (134 and 3,284). The other ~19 thousand
+6. **Kingdom evidence.** Of the 20,349 assemblies, 4,616 have eukaryote evidence (411
+   because their sample already yielded a eukaryote genome, 4,205 from project text);
+   of the 22,741 runs with ≥ 1 M reads, 3,427 do (134 and 3,293). The other ~19 thousand
    runs are counted by `marine-water-prok`, not here.
 
 | metagenome taxon | MAGs (euk) | MGnify bins (euk) | assemblies | with euk evidence | runs ≥ 1 M | with euk evidence | new | Gbases | read studies |
 |---|---|---|---|---|---|---|---|---|---|
-| marine metagenome | 61 | 235 | 18,107 | 1,634 | 17,562 | 3,190 | 12 | 250,985 | 2,019 |
-| seawater metagenome | 0 | 0 | 1,484 | 3 | 4,571 | 216 | 9 | 68,133 | 1,188 |
+| marine metagenome | 61 | 235 | 18,107 | 4,592 | 17,562 | 3,199 | 12 | 250,985 | 2,019 |
+| seawater metagenome | 0 | 0 | 1,484 | 14 | 4,571 | 216 | 9 | 68,133 | 1,188 |
 | marine plankton metagenome | 0 | 0 | 758 | 10 | 608 | 12 | 0 | 5,347 | 21 |
-| **TOTAL** | **61** | **235** | **20,349** | **1,647** | **22,741** | **3,418** | **21** | **324,466** | **3,220** |
+| **TOTAL** | **61** | **235** | **20,349** | **4,616** | **22,741** | **3,427** | **21** | **324,466** | **3,220** |
 
 So a eukaryote marine-water catalogue update would start from 61 MAGs and 235 MGnify bins
-(none new), 1,647 assemblies and 3,418 runs with eukaryote evidence to bin or assemble, and
+(none new), 4,616 assemblies and 3,427 runs with eukaryote evidence to bin or assemble, and
 12 eukaryote runs public since the last update (`runs_1m_kingdom_new`; 21 counting any
 kingdom). That small influx of new data is the kind of answer the survey is for.
 
@@ -238,14 +240,15 @@ GET  ENA Browser /xml/{MAG and bin sample IDs}             → their source samp
 ```
 
 - **Kingdom evidence** (assemblies and runs): `genome` if the sample is the source of a MAG or
-  bin, otherwise the project text is matched against the kingdom's terms (*protist*,
-  *diatom*, *18S*… or *bacteria*, *archaea*, *16S*…). Example: 1,647 of 20,349 assemblies and
-  3,418 of 22,741 runs ≥ 1 M have eukaryote evidence.
+  bin, otherwise the texts of the sample's projects are matched against the kingdom's terms
+  (*protist*, *diatom*, *18S*… or *bacteria*, *archaea*, *16S*…); every record of a sample
+  takes the strongest evidence among them. Example: 4,616 of 20,349 assemblies and 3,427 of
+  22,741 runs ≥ 1 M have eukaryote evidence.
 - **Catalogue membership**: MAGs and bins whose accession or sample is in the step 1 genome
   list are already in the catalogue. Example: **24 MAGs and 13 MGnify bins** are not.
 - **Routes**: an assembly with eukaryote evidence whose sample has no genome is *to bin*
-  (1,236); a run ≥ 1 M with eukaryote evidence whose sample has neither a genome nor an
-  assembly is *to assemble* (1,931 runs, 50,817 Gbases).
+  (4,205 from 2,090 samples); a run ≥ 1 M with eukaryote evidence whose sample has neither a
+  genome nor an assembly is *to assemble* (680 runs from 623 samples, 9,991 Gbases).
 
 ### 8. Summaries and outputs
 
@@ -259,8 +262,8 @@ counts each record once), and written to `survey.tsv`, `biomes/<name>/records.ts
 |---|---|---|---|
 | MAGs | 2.5 M | 213,712 with `metagenome_source = marine metagenome` | 61 eukaryote, 24 not in the catalogue |
 | MGnify genomes | 235 in MGnify studies | 235 from this biome's samples | 13 not in the catalogue |
-| Assemblies | 20,349 under the three taxa | 1,647 with eukaryote evidence | 1,236 to bin |
-| Runs | 30,542 under the three taxa | 22,741 with ≥ 1 M reads; 3,418 with eukaryote evidence | 1,931 to assemble |
+| Assemblies | 20,349 under the three taxa | 4,616 with eukaryote evidence | 4,205 to bin (2,090 samples) |
+| Runs | 30,542 under the three taxa | 22,741 with ≥ 1 M reads; 3,427 with eukaryote evidence | 680 to assemble (623 samples) |
 
 ## Output folder
 
@@ -305,7 +308,7 @@ How to read the routes: many **MAGs to add** means the catalogue can grow now; m
 assemble** means it would pay to assemble from reads first. The routes count samples, not
 records, because the sample is the unit of curation and one sample can have several assemblies
 (e.g. by its submitter and by MGnify) or runs (lanes, re-sequencing): marine-water-euk has
-1,236 assemblies from 974 samples to bin and 1,931 runs from 1,713 samples to assemble. A
+4,205 assemblies from 2,090 samples to bin and 680 runs from 623 samples to assemble. A
 sample whose data is already further processed (a genome, or for reads an assembly) is left
 out, because each sample enters at its most processed public data. The record counts
 (`assemblies_to_bin`, `runs_to_assemble`) and the full ones (`assemblies_kingdom`,
@@ -360,7 +363,7 @@ One row per record: `data_type` (`mag`, `bin` for an MGnify bin, `contigs`, `rea
 `study_accession`, `from_mgnify` (the study is one of MGnify's own ENA studies), `sample_accession`, `metagenome_taxon`, `first_public`, `is_new` (public
 on or after the catalogue cutoff), `read_count`, `base_count`, `library_layout`,
 `instrument_platform`, `center_name` and `assembly_software` (assemblies),
-`kingdom_evidence` and `kingdom_match` (assemblies and runs: see *Kingdom evidence*),
+`kingdom_evidence`, `kingdom_match` and `kingdom_terms` (assemblies and runs: see *Kingdom evidence*),
 `in_catalogue` (MAGs and bins already in the existing catalogue), `route` (assemblies and runs:
 `bin`, `assemble` or `covered`),
 `scope_taxon`, `tax_id` and `scientific_name` (MAG organism),
@@ -378,7 +381,7 @@ bin or assemble has no row.
 |---|---|
 | `study_accession`, `from_mgnify`, `metagenome_taxa`, `first_public` | the study, whether it is an MGnify study, its taxa and its earliest record on a route |
 | `mags_to_add` | MAGs and MGnify bins not in the existing catalogue (→ genomes-catalogue-pipeline) |
-| `assemblies_to_bin`, `samples_to_bin` | assemblies whose sample has no genome yet (→ genomes-generation), and their samples. A sample with such assemblies in several studies counts in the first study (by accession), so the column adds up to `survey.tsv` |
+| `assemblies_to_bin`, `samples_to_bin` | assemblies whose sample has no genome yet (→ genomes-generation), and their samples. A sample with such assemblies in several studies counts once, in the study with the most assemblies to bin (ties by accession), so the column adds up to `survey.tsv` |
 | `assemblies_with_mags`, `mags_studies` | the study's assemblies left out because their sample already yielded a MAG (submitted, or an MGnify bin), and the studies holding those MAGs. An assembly to bin never shares a sample with a genome, so this is where an assembly project meets the MAGs made from it |
 | `runs_to_assemble`, `samples_to_assemble` | runs ≥ 1 M reads whose sample has neither a genome nor an assembly (→ miassembler), and their samples, counted once as for `samples_to_bin` |
 
