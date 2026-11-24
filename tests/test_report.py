@@ -57,19 +57,25 @@ def test_report_writes_dashboard(tmp_path):
         d = tmp_path / "biomes" / biome
         d.mkdir(parents=True)
         survey.write_tsv(d / "records.tsv", survey.RECORD_COLUMNS, recs)
+        survey.write_tsv(
+            d / "studies.tsv",
+            survey.STUDY_COLUMNS,
+            [{"study_accession": "S2", "from_mgnify": "True", "first_public": "2021-02-01", "assemblies_to_bin": 1}],
+        )
     counts = {
         "mags": 1,
         "mags_mgnify": 0,
         "mgnify_bins": 1,
         "mags_to_add": 1,
         "mgnify_bins_to_add": 0,
-        "contigs_kingdom": 1,
+        "assemblies_kingdom": 1,
         "runs_1m_kingdom": 1,
         "gbases_1m_kingdom": 1.5,
-        "contigs_to_bin": 1,
+        "assemblies_to_bin": 1,
+        "samples_to_bin": 1,
         "runs_to_assemble": 1,
+        "samples_to_assemble": 1,
         "gbases_to_assemble": 1.5,
-        "mgnify_samples": 3,
     }
     rows = []
     for biome, extra in [

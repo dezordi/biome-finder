@@ -48,7 +48,6 @@ SURVEY_COLUMNS = [
     "catalogue_species",
     "catalogue_genomes",
     "catalogue_mags",
-    "mgnify_samples",
     "mags",
     "mags_new",
     "mags_mgnify",
@@ -57,17 +56,19 @@ SURVEY_COLUMNS = [
     "mgnify_bins",
     "mgnify_bins_new",
     "mgnify_bins_to_add",
-    "contigs",
-    "contigs_mgnify",
-    "contigs_kingdom",
-    "contigs_to_bin",
-    "contig_studies",
+    "assemblies",
+    "assemblies_mgnify",
+    "assemblies_kingdom",
+    "assemblies_to_bin",
+    "samples_to_bin",
+    "assembly_studies",
     "runs",
     "runs_1m",
     "runs_1m_kingdom",
     "runs_1m_new",
     "runs_1m_kingdom_new",
     "runs_to_assemble",
+    "samples_to_assemble",
     "runs_1m_paired",
     "runs_1m_long",
     "gbases_1m",
@@ -108,31 +109,14 @@ STUDY_COLUMNS = [
     "study_accession",
     "from_mgnify",
     "metagenome_taxa",
-    "samples",
     "first_public",
-    "last_public",
-    "mags",
-    "mags_new",
-    "mags_mgnify",
     "mags_to_add",
-    "mgnify_bins",
-    "mgnify_bins_new",
-    "mgnify_bins_to_add",
-    "contigs",
-    "contigs_mgnify",
-    "contigs_kingdom",
-    "contigs_to_bin",
-    "runs",
-    "runs_1m",
-    "runs_1m_kingdom",
-    "runs_1m_kingdom_new",
+    "assemblies_to_bin",
+    "samples_to_bin",
+    "assemblies_with_mags",
+    "mags_studies",
     "runs_to_assemble",
-    "runs_1m_new",
-    "runs_1m_paired",
-    "runs_1m_long",
-    "gbases_1m",
-    "gbases_1m_kingdom",
-    "gbases_to_assemble",
+    "samples_to_assemble",
 ]
 
 
@@ -159,17 +143,19 @@ def summarize(
         "mgnify_bins": len(bins),
         "mgnify_bins_new": new(bins),
         "mgnify_bins_to_add": sum(not r.get("in_catalogue", False) for r in bins),
-        "contigs": len(contigs),
-        "contigs_mgnify": sum(r.get("from_mgnify", False) for r in contigs),
-        "contigs_kingdom": sum(r.get("kingdom_match", True) for r in contigs),
-        "contigs_to_bin": sum(r.get("route") == "bin" for r in contigs),
-        "contig_studies": len({r["study_accession"] for r in contigs}),
+        "assemblies": len(contigs),
+        "assemblies_mgnify": sum(r.get("from_mgnify", False) for r in contigs),
+        "assemblies_kingdom": sum(r.get("kingdom_match", True) for r in contigs),
+        "assemblies_to_bin": sum(r.get("route") == "bin" for r in contigs),
+        "samples_to_bin": len({r["sample_accession"] for r in contigs if r.get("route") == "bin"}),
+        "assembly_studies": len({r["study_accession"] for r in contigs}),
         "runs": len(runs),
         "runs_1m": len(big),
         "runs_1m_kingdom": sum(r.get("kingdom_match", True) for r in big),
         "runs_1m_new": new(big),
         "runs_1m_kingdom_new": new([r for r in big if r.get("kingdom_match", True)]),
         "runs_to_assemble": len(to_assemble),
+        "samples_to_assemble": len({r["sample_accession"] for r in to_assemble}),
         "gbases_to_assemble": gbases(to_assemble),
         "runs_1m_paired": sum(r["library_layout"] == "PAIRED" for r in big)
         - sum(r["library_layout"] == "PAIRED" for r in long_),
@@ -295,15 +281,23 @@ def study_kingdom(text: str, kingdom: str) -> str:
     return "other_kingdom" if KINGDOM_TERMS[other].search(text) else "none"
 
 
-def genome_samples(genomes: list[Record]) -> set[str]:
-    """Source samples (`derived from`) of MAGs and bins, under both their primary and
-    secondary IDs. Fills `source_samples` on genomes that lack it."""
+def genome_samples(genomes: list[Record]) -> dict[str, set[str]]:
+    """Source samples (`derived from`) of MAGs and bins, under both their primary and secondary
+    IDs, each mapped to the studies of the genomes made from it. Fills `source_samples` on
+    genomes that lack it."""
     origin = ena.derived_from(g["sample_accession"] for g in genomes if not g.get("source_samples")).data
     for g in genomes:
         if not g.get("source_samples"):
             g["source_samples"] = ";".join(origin.get(g["sample_accession"], []))
-    src = {s for g in genomes for s in g["source_samples"].split(";") if s}
-    return src | {i for s in ena.sample_hosts(src).data for i in s.ids}
+    studies_of: dict[str, set[str]] = defaultdict(set)
+    for g in genomes:
+        for s in filter(None, g["source_samples"].split(";")):
+            studies_of[s].add(g["study_accession"])
+    for sample in ena.sample_hosts(set(studies_of)).data:
+        linked = set().union(*(studies_of.get(i, set()) for i in sample.ids))
+        for i in sample.ids:
+            studies_of[i] = linked
+    return dict(studies_of)
 
 
 def kingdom_evidence(cfg: Config, genomes: list[Record], contigs: list[Record], runs: list[Record]) -> None:
@@ -314,10 +308,12 @@ def kingdom_evidence(cfg: Config, genomes: list[Record], contigs: list[Record], 
 
     Then `route`, the step each counted record would enter at (a sample enters at its most
     processed data): assemblies whose sample has no genome yet are to `bin`; runs ≥ 1 M reads
-    whose sample has neither a genome nor an assembly are to `assemble`; the rest are `covered`."""
+    whose sample has neither a genome nor an assembly are to `assemble`; the rest are `covered`.
+    `covered_by` lists the studies of the genomes made from a record's sample."""
     texts = {s.study_accession: s.text for s in ena.studies({r["study_accession"] for r in contigs + runs}).data}
     from_genomes = genome_samples(genomes)
     for r in contigs + runs:
+        r["covered_by"] = ";".join(sorted(from_genomes.get(r["sample_accession"], ())))
         r["kingdom_evidence"] = (
             "genome"
             if r["sample_accession"] in from_genomes
@@ -348,29 +344,6 @@ def catalogue_membership(cat: MgnifyCatalogue | None, genomes: list[Record]) -> 
     return sum(g.genome_type == "MAG" for g in listed) if cat else ""
 
 
-def under(lineage: str, parent: str) -> bool:
-    """True if `lineage` is `parent` or one of its descendants."""
-    return lineage == parent or lineage.startswith(parent + ":")
-
-
-def in_scope(lineage: str, include: list[str], exclude: list[str]) -> bool:
-    """Biome scope rule: whole subtrees of `mgnify_lineages`, minus whole subtrees of
-    `mgnify_lineages_exclude`."""
-    return any(under(lineage, p) for p in include) and not any(under(lineage, p) for p in exclude)
-
-
-def mgnify_samples(cfg: Config) -> int:
-    """MGnify-analysed samples in the biome's lineage scope."""
-    include, exclude = cfg.get("mgnify_lineages") or [], cfg.get("mgnify_lineages_exclude") or []
-    nodes: dict[str, int] = {}
-    for lineage in include + exclude:
-        subtree = mgnify.biome_subtree(lineage)
-        if not subtree.ok:
-            warn(f"{cfg['name']}: MGnify lineage {lineage!r} does not exist")
-        nodes.update({b.lineage: b.samples_count for b in subtree.data})
-    return sum(n for lin, n in nodes.items() if in_scope(lin, include, exclude))
-
-
 def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
     """One survey row per metagenome taxon of a biome config, plus a TOTAL row; the records
     behind them; and the cutoff date. MAGs are searched once per kingdom taxon, so each is
@@ -391,7 +364,6 @@ def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
         "catalogue_updated": cutoff,
         "catalogue_species": cat.genome_count if cat else "",
         "catalogue_genomes": cat.unclustered_genome_count if cat else "",
-        "mgnify_samples": mgnify_samples(cfg),
     }
     run_host = host_filter(cfg)
 
@@ -467,30 +439,54 @@ def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
     return rows, all_mags + bins + all_contigs + all_runs, cutoff
 
 
-def studies(records: list[Record], cutoff: str) -> list[dict[str, Any]]:
-    """One row per study: its counts, samples and publication date range."""
+def studies(records: list[Record]) -> list[dict[str, Any]]:
+    """One row per study with records on a route, largest first: MAGs to add (MAGs and MGnify
+    bins not in the catalogue, → genomes-catalogue-pipeline), assemblies to bin (→ genomes-generation)
+    and runs to assemble (→ miassembler), with the samples behind the last two. Feeds the
+    dashboard's largest-projects chart. A sample with records on a route in several studies
+    counts in the first of them (by accession), so the sample columns add up to survey.tsv.
+
+    An assembly to bin never shares a sample with a genome (that would make it `covered`), so
+    `assemblies_with_mags` counts the study's assemblies left out because their sample already
+    yielded a MAG or MGnify bin, and `mags_studies` names the studies holding those."""
     by_study = defaultdict(list)
     for r in records:
-        by_study[r["study_accession"]].append(r)
+        add = r["data_type"] in ("mag", "bin") and not r.get("in_catalogue", False)
+        covered = r["data_type"] == "contigs" and r.get("route") == "covered"
+        if add or covered or r.get("route") in ("bin", "assemble"):
+            by_study[r["study_accession"]].append(r)
+    owner: dict[tuple[str, str], str] = {}
+    for r in sorted(records, key=lambda r: r["study_accession"]):
+        if r.get("route") in ("bin", "assemble"):
+            owner.setdefault((r["route"], r["sample_accession"]), r["study_accession"])
+
+    def owned(rows: list[Record]) -> int:
+        return len(
+            {r["sample_accession"] for r in rows if owner[(r["route"], r["sample_accession"])] == r["study_accession"]}
+        )
+
     rows = []
     for study, recs in by_study.items():
-
-        def of(data_type: str) -> list[Record]:
-            return [r for r in recs if r["data_type"] == data_type]
-
-        dates = [r["first_public"] for r in recs]
+        to_add = [r for r in recs if r["data_type"] in ("mag", "bin")]
+        to_bin = [r for r in recs if r.get("route") == "bin"]
+        with_genome = [r for r in recs if r["data_type"] == "contigs" and r.get("route") == "covered"]
+        to_assemble = [r for r in recs if r.get("route") == "assemble"]
         rows.append(
             {
                 "study_accession": study,
-                "from_mgnify": recs[0].get("from_mgnify", False),
+                "from_mgnify": any(r.get("from_mgnify", False) for r in recs),
                 "metagenome_taxa": ";".join(sorted({r["metagenome_taxon"] for r in recs})),
-                "samples": len({r["sample_accession"] for r in recs if r["data_type"] in ("contigs", "reads")}),
-                "first_public": min(dates),
-                "last_public": max(dates),
-                **summarize(of("mag"), of("contigs"), of("reads"), cutoff, of("bin")),
+                "first_public": min(r["first_public"] for r in recs),
+                "mags_to_add": len(to_add),
+                "assemblies_to_bin": len(to_bin),
+                "samples_to_bin": owned(to_bin),
+                "assemblies_with_mags": len(with_genome),
+                "mags_studies": ";".join(sorted({s for r in with_genome for s in r["covered_by"].split(";") if s})),
+                "runs_to_assemble": len(to_assemble),
+                "samples_to_assemble": owned(to_assemble),
             }
         )
-    return sorted(rows, key=lambda r: -len(by_study[r["study_accession"]]))
+    return sorted(rows, key=lambda r: -(r["mags_to_add"] + r["assemblies_to_bin"] + r["runs_to_assemble"]))
 
 
 def write_tsv(path: Path, columns: list[str], rows: Iterable[dict[str, Any]]) -> None:
@@ -515,6 +511,6 @@ def run(biome_paths: Iterable[str], out_dir: str | Path) -> None:
         biome_dir = out / "biomes" / cfg["name"]
         biome_dir.mkdir(parents=True, exist_ok=True)
         write_tsv(biome_dir / "records.tsv", RECORD_COLUMNS, records)
-        write_tsv(biome_dir / "studies.tsv", STUDY_COLUMNS, studies(records, cutoff))
+        write_tsv(biome_dir / "studies.tsv", STUDY_COLUMNS, studies(records))
     write_tsv(out / "survey.tsv", SURVEY_COLUMNS, rows)
     report.write(out)

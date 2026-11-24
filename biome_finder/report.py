@@ -47,6 +47,9 @@ COLORS = {
     ASSEMBLIES: "#E69F00",
     RUNS: "#009E73",
     "MAGs": "#0072B2",
+    "MAGs to add": "#0072B2",
+    "Assemblies to bin": "#E69F00",
+    "Runs to assemble": "#009E73",
     "Samples to bin": "#E69F00",
     "Samples to assemble": "#009E73",
     "short reads": "#009E73",
@@ -118,6 +121,21 @@ new MAGs. Samples, not records, because a sample can have several assemblies or 
 """
 
 
+def projects(out: Path) -> pd.DataFrame:
+    """Every catalogue's studies.tsv (records per route and project), with a `biome` column. Counts
+    are made numeric because a catalogue with nothing on a route has an empty file, read as text."""
+    studies = pd.concat(
+        [
+            pd.read_csv(p, sep="\t", dtype={"study_accession": str, "from_mgnify": str}).assign(biome=p.parent.name)
+            for p in sorted((out / "biomes").glob("*/studies.tsv"))
+        ],
+        ignore_index=True,
+    )
+    counts = ["mags_to_add", "assemblies_to_bin", "samples_to_bin", "runs_to_assemble", "samples_to_assemble"]
+    studies[counts] = studies[counts].apply(pd.to_numeric).fillna(0).astype(int)
+    return studies
+
+
 def load(out: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """survey.tsv plus every catalogue's records.tsv, with a `biome` column and a `kind`
     (MAGs from submitters or MGnify, assemblies, runs ≥1M) for every record counted for the
@@ -151,30 +169,9 @@ def load(out: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     return survey, records[records["kind"] != ""].copy()
 
 
-def samples(records: pd.DataFrame) -> pd.Series:
-    """Distinct samples behind `records`, per (biome, metagenome taxon) plus TOTAL. Genomes
-    count their source samples (`derived from`), so a co-assembly counts all of them."""
-    src = records["source_samples"].where(
-        records["kind"].isin([SUBMITTED, BY_MGNIFY]) & (records["source_samples"] != ""), records["sample_accession"]
-    )
-    # ponytail: primary and secondary IDs (SAMEA vs ERS) of one sample can both appear; map them if it matters
-    s = records.assign(sample=src.str.split(";")).explode("sample")
-    s = s[s["sample"] != ""]
-    per_taxon = s.groupby(["biome", "metagenome_taxon"])["sample"].nunique()
-    total = s.groupby("biome")["sample"].nunique()
-    total.index = pd.MultiIndex.from_product([total.index, ["TOTAL"]])
-    return pd.concat([per_taxon, total])
-
-
-def totals(rows: pd.DataFrame, records: pd.DataFrame) -> pd.DataFrame:
+def totals(rows: pd.DataFrame) -> pd.DataFrame:
     """survey.tsv rows as the dashboard's kingdom-only columns, with the samples of each route."""
     n = rows.fillna({c: 0 for c in rows.columns if pd.api.types.is_numeric_dtype(rows[c])})
-    routes = {
-        "samples_bin": (records["kind"] == ASSEMBLIES) & (records["route"] == "bin"),
-        "samples_assemble": (records["kind"] == RUNS) & (records["route"] == "assemble"),
-    }
-    keys = list(zip(rows["biome"], rows["metagenome_taxon"]))
-    per_route = {col: samples(records[mask]) for col, mask in routes.items()}
     return pd.DataFrame(
         {
             "biome": rows["biome"],
@@ -183,9 +180,10 @@ def totals(rows: pd.DataFrame, records: pd.DataFrame) -> pd.DataFrame:
             "kingdom": rows["kingdom"],
             "mags": n["mags"] + n["mgnify_bins"],
             "to_add": n["mags_to_add"] + n["mgnify_bins_to_add"],
-            "to_bin": rows["contigs_to_bin"],
+            "to_bin": rows["assemblies_to_bin"],
             "to_assemble": rows["runs_to_assemble"],
-            **{col: [s.get(k, 0) for k in keys] for col, s in per_route.items()},
+            "samples_bin": rows["samples_to_bin"],
+            "samples_assemble": rows["samples_to_assemble"],
             "tbases": rows["gbases_to_assemble"] / 1000,
         }
     ).reset_index(drop=True)
@@ -528,24 +526,30 @@ def timeline_figure(records: pd.DataFrame, cutoff: Any) -> go.Figure:
     return fig
 
 
-def top_studies_figure(records: pd.DataFrame) -> go.Figure:
-    per = records.groupby(["study_accession", "kind"]).size().rename("n").reset_index()
-    mgnify = set(records.loc[records["from_mgnify"] == "True", "study_accession"])
-    order = per.groupby("study_accession")["n"].sum().nlargest(TOP_STUDIES).index
-    data = per[per["study_accession"].isin(order)]
-    label = {s: f"{s} (MGnify)" if s in mgnify else s for s in order}
-    data = data.assign(study_accession=data["study_accession"].map(label))
+def top_studies_figure(studies: pd.DataFrame) -> go.Figure:
+    """The projects with most records on a route, from studies.tsv."""
+    routes = {
+        "mags_to_add": "MAGs to add",
+        "assemblies_to_bin": "Assemblies to bin",
+        "runs_to_assemble": "Runs to assemble",
+    }
+    top = studies.assign(total=studies[list(routes)].sum(axis=1)).nlargest(TOP_STUDIES, "total")
+    label = top["study_accession"] + np.where(top["from_mgnify"] == "True", " (MGnify)", "")
+    data = top.assign(study_accession=label).melt(
+        id_vars=["study_accession"], value_vars=list(routes), var_name="route", value_name="n"
+    )
+    data = data[data["n"] > 0].replace({"route": routes})
     return figure(
         data,
         px.bar,
         x="n",
         y="study_accession",
-        color="kind",
+        color="route",
         orientation="h",
         color_discrete_map=COLORS,
-        category_orders={"study_accession": [label[s] for s in order], "kind": KINDS},
-        labels={"n": "records", "study_accession": "", "kind": ""},
-        layout={"height": 120 + 24 * len(order)},
+        category_orders={"study_accession": list(label), "route": list(routes.values())},
+        labels={"n": "records", "study_accession": "", "route": ""},
+        layout={"height": 120 + 24 * len(top)},
     )
 
 
@@ -631,7 +635,7 @@ def note(text: str) -> pn.pane.Markdown:
 
 def overview(survey: pd.DataFrame, records: pd.DataFrame, colors: dict[str, str]) -> pn.Column:
     rows = survey[survey["metagenome_taxon"] == "TOTAL"]
-    t = totals(rows, records)
+    t = totals(rows)
     existing = rows["catalogue"].notna().sum()
     parts = [
         note(ABOUT),
@@ -699,9 +703,9 @@ def headline(total: pd.Series) -> str:
     )
 
 
-def catalogue(rows: pd.DataFrame, records: pd.DataFrame) -> pn.Column:
+def catalogue(rows: pd.DataFrame, records: pd.DataFrame, studies: pd.DataFrame) -> pn.Column:
     raw = rows[rows["metagenome_taxon"] == "TOTAL"].iloc[0]
-    t = totals(rows, records)
+    t = totals(rows)
     total = t[t["metagenome_taxon"] == "TOTAL"].iloc[0]
     parts = [
         pn.pane.Markdown(headline(raw), sizing_mode="stretch_width", margin=(0, 16)),
@@ -742,7 +746,7 @@ def catalogue(rows: pd.DataFrame, records: pd.DataFrame) -> pn.Column:
         grid(
             card("MAGs and samples per metagenome taxon", catalogue_records(t[t["metagenome_taxon"] != "TOTAL"])),
             card("Cumulative records by first-public month", timeline_figure(records, raw["catalogue_updated"])),
-            card(f"Largest {TOP_STUDIES} projects", top_studies_figure(records), tooltip=PROJECTS),
+            card(f"Largest {TOP_STUDIES} projects", top_studies_figure(studies), tooltip=PROJECTS),
             card("Reads per run (box: 5th–95th percentile)", depth_figure(records, "metagenome_taxon")),
         ),
         card(
@@ -763,13 +767,16 @@ def write(out: str | Path) -> None:
     out = Path(out)
     pn.extension("plotly", "tabulator", design="bootstrap")
     survey, records = load(out)
+    studies = projects(out)
     biomes = sorted(survey["biome"].unique())
     cycle = px.colors.qualitative.Safe + px.colors.qualitative.Vivid
     colors = {b: cycle[i % len(cycle)] for i, b in enumerate(biomes)}
     pick = pn.widgets.Select(label="Catalogue", options=biomes, sizing_mode="stretch_width")
 
     def view(biome: str) -> pn.Column:
-        return catalogue(survey[survey["biome"] == biome], records[records["biome"] == biome])
+        return catalogue(
+            survey[survey["biome"] == biome], records[records["biome"] == biome], studies[studies["biome"] == biome]
+        )
 
     header = pn.pane.Markdown(
         "# biome-finder survey",

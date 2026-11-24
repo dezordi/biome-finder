@@ -105,19 +105,6 @@ def test_host_filter():
     )
 
 
-def test_in_scope_subtree_minus_excludes():
-    from biome_finder.survey import in_scope
-
-    soil = ["root:Environmental:Terrestrial:Soil"]
-    no = ["root:Environmental:Terrestrial:Soil:Permafrost", "root:Environmental:Terrestrial:Soil:Wetlands"]
-    assert in_scope("root:Environmental:Terrestrial:Soil", soil, no)
-    assert in_scope("root:Environmental:Terrestrial:Soil:Forest soil", soil, no)
-    assert not in_scope("root:Environmental:Terrestrial:Soil:Wetlands:Permafrost", soil, no)
-    assert not in_scope("root:Environmental:Terrestrial:Soil:Permafrost", soil, no)
-    assert not in_scope("root:Environmental:Terrestrial:Soilless", soil, no)  # prefix, not a child
-    assert not in_scope("root:Environmental:Terrestrial", soil, no)
-
-
 def test_taxa_filter_defaults_plus_extra():
     from biome_finder.survey import taxa_filter
 
@@ -126,7 +113,7 @@ def test_taxa_filter_defaults_plus_extra():
         assert f"NOT tax_tree({t})" in clause
 
 
-def test_studies_groups_records_and_counts_samples():
+def test_studies_count_records_and_samples_per_route():
     from biome_finder.survey import studies, tag
 
     runs = tag(
@@ -134,25 +121,39 @@ def test_studies_groups_records_and_counts_samples():
             from_row(EnaRun, run("R1", "S1", 5_000_000)),
             from_row(EnaRun, run("R2", "S1", 2_000_000)),
             from_row(EnaRun, run("R3", "S2", 3_000_000)),
+            from_row(EnaRun, run("R4", "S4", 4_000_000)),
         ],
         "reads",
         "run_accession",
         "soil metagenome",
         "",
     )
-    for r, s in zip(runs, ["SA1", "SA1", "SA2"]):
-        r["sample_accession"] = s
+    for r, s, route in zip(runs, ["SA1", "SA1", "SA2", "SA1"], ["assemble", "assemble", "covered", "assemble"]):
+        r["sample_accession"], r["route"] = s, route
     mags = tag(
-        [from_row(EnaMag, {"accession": "M1", "study_accession": "S1", "first_public": "2024-01-01"})],
+        [
+            from_row(EnaMag, {"accession": "M1", "study_accession": "S1", "first_public": "2024-01-01"}),
+            from_row(EnaMag, {"accession": "M2", "study_accession": "S1", "first_public": "2024-01-01"}),
+        ],
         "mag",
         "accession",
         "soil metagenome",
         "",
     )
-    rows = {r["study_accession"]: r for r in studies(runs + mags, "")}
-    assert rows["S1"]["runs"] == 2 and rows["S1"]["samples"] == 1 and rows["S1"]["mags"] == 1
-    assert rows["S2"]["mags"] == 0
-    assert list(rows)[0] == "S1"  # largest study first
+    mags[1]["in_catalogue"] = True
+    contig = {
+        "data_type": "contigs",
+        "study_accession": "S3",
+        "sample_accession": "SA3",
+        "metagenome_taxon": "soil metagenome",
+    }
+    contig |= {"first_public": "2023-01-01", "route": "covered", "covered_by": "S1"}
+    rows = {r["study_accession"]: r for r in studies(runs + mags + [contig])}
+    assert rows["S1"]["runs_to_assemble"] == 2 and rows["S1"]["samples_to_assemble"] == 1
+    assert rows["S4"]["runs_to_assemble"] == 1 and rows["S4"]["samples_to_assemble"] == 0  # SA1 counts in S1
+    assert rows["S1"]["mags_to_add"] == 1  # M2 is already in the catalogue
+    assert "S2" not in rows  # its only run is covered, so it has nothing on a route
+    assert rows["S3"]["assemblies_with_mags"] == 1 and rows["S3"]["mags_studies"] == "S1"
 
 
 def test_mgnify_bins_need_every_source_sample_in_the_biome(monkeypatch):
@@ -222,7 +223,7 @@ def test_kingdom_match_rules(monkeypatch):
         ]
 
     euk = data()
-    survey.kingdom_evidence({"kingdom": "eukaryotes"}, [{"source_samples": "SAMEA_G"}], [], euk)
+    survey.kingdom_evidence({"kingdom": "eukaryotes"}, [{"study_accession": "G", "source_samples": "SAMEA_G"}], [], euk)
     assert [r["kingdom_evidence"] for r in euk] == ["study_text", "other_kingdom", "none", "genome"]
     assert [r["kingdom_match"] for r in euk] == [True, False, False, True]
     prok = data()
@@ -236,7 +237,7 @@ def test_routes_each_sample_enters_at_its_most_processed_data(monkeypatch):
     monkeypatch.setattr(ena, "studies", ok([]))
     monkeypatch.setattr(ena, "derived_from", ok({}))
     monkeypatch.setattr(ena, "sample_hosts", ok([]))
-    genomes = [{"sample_accession": "M1", "source_samples": "S_genome"}]
+    genomes = [{"study_accession": "G", "sample_accession": "M1", "source_samples": "S_genome"}]
     contigs = [{"study_accession": "P", "sample_accession": s} for s in ("S_genome", "S_asm")]
     runs = [
         {"study_accession": "P", "sample_accession": s, "read_count": n}
@@ -245,6 +246,7 @@ def test_routes_each_sample_enters_at_its_most_processed_data(monkeypatch):
     survey.kingdom_evidence({"kingdom": "prokaryotes"}, genomes, contigs, runs)
     assert [r["route"] for r in contigs] == ["covered", "bin"]
     assert [r["route"] for r in runs] == ["covered", "covered", "assemble", ""]
+    assert [r["covered_by"] for r in contigs] == ["G", ""]  # the study holding the genome
 
 
 def test_catalogue_membership_matches_accession_or_sample(monkeypatch):

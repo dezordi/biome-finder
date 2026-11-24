@@ -14,11 +14,6 @@ STEPS = [  # (title, detail lines, example lines)
         ["eukaryotes ✓ · 74 species · “new” = public since 2026-10-27"],
     ),
     (
-        "MGnify samples in scope",
-        ["lineage subtrees minus the excluded subtrees"],
-        ["43,788 Marine − 6,663 sediment = 37,125 samples"],
-    ),
-    (
         "Metagenome taxa → tax IDs",
         ["each name → its ENA tax ID → three searches and one output row"],
         ["marine metagenome → 408172 · seawater metagenome → 1561972", "marine plankton metagenome → 1874687"],
@@ -27,10 +22,10 @@ STEPS = [  # (title, detail lines, example lines)
         "ENA searches, per taxon",
         [
             "MAGs, bins: only the config's kingdom, minus the excluded taxa",
-            "assemblies, runs: whole communities; eukaryote subset in step 7",
+            "assemblies, runs: whole communities; eukaryote subset in step 6",
         ],
         [
-            "61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 6)",
+            "61 eukaryote MAGs (of 213,712 of any kingdom) + 235 MGnify bins (step 5)",
             "1,647 eukaryote assemblies (of 20,349) · 5,337 runs (of 30,542)",
         ],
     ),
@@ -76,24 +71,21 @@ STEPS = [  # (title, detail lines, example lines)
     ),
 ]
 YAML = [  # (text, key?, badges)
-    ("name:", " marine-water-euk", [8]),
-    ("kingdom:", " eukaryotes", [1, 4, 7]),
+    ("name:", " marine-water-euk", [7]),
+    ("kingdom:", " eukaryotes", [1, 3, 6]),
     ("mgnify_catalogue:", " marine-eukaryotes-v1-0", [1]),
-    ("mgnify_lineages:", "", [2]),
-    (None, "  - root:Environmental:Aquatic:Marine", []),
-    ("mgnify_lineages_exclude:", "", [2]),
-    (None, "  - root:…:Marine:Sediment  # +10", []),
-    ("metagenome_taxa:", "", [3]),
+    ("metagenome_taxa:", "", [2]),
     (None, "  - marine metagenome", []),
     (None, "  - seawater metagenome", []),
     (None, "  - marine plankton metagenome", []),
-    ("exclude_taxa_extra:", " []", [4]),
-    ("host_tax_id:", "", [5]),
-    ("host_keywords:", " []", [5]),
+    ("exclude_taxa_extra:", " []", [3]),
+    ("host_tax_id:", "", [4]),
+    ("host_keywords:", " []", [4]),
 ]
 COMMENTS = [
     "# not used by survey (search, prepare):",
-    "# catalogue_biome, envo_*, keywords_*,",
+    "# catalogue_biome, mgnify_lineages*,",
+    "# envo_*, keywords_*,",
     "# gold_ecosystems, data_types, …",
 ]
 GAP, LINE, X, W = 20, 18, 490, 490

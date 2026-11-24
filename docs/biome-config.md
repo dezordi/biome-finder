@@ -21,8 +21,8 @@ design in `PROPOSAL.md`.
 | [`kingdom`](#kingdom) | MAG search, kingdom evidence, catalogue check | taxon scope | `--kingdom`, folder |
 | [`mgnify_catalogue`](#mgnify-catalogue) | catalogue context, cutoff, genomes already in it | flags genomes already in it | — |
 | [`catalogue_biome`](#catalogue-biome) | — | target lineage of the score | `--biome` |
-| [`mgnify_lineages`](#mgnify-lineages) | MGnify samples in scope (context) | biome evidence (action 1) | — |
-| [`mgnify_lineages_exclude`](#mgnify-lineages-exclude) | MGnify samples in scope (context) | conflict evidence | — |
+| [`mgnify_lineages`](#mgnify-lineages) | — | biome evidence (action 1) | — |
+| [`mgnify_lineages_exclude`](#mgnify-lineages-exclude) | — | conflict evidence | — |
 | [`lineage_equivalents`](#lineage-equivalents) | — | maps evidence lineages | — |
 | [`envo_include`](#envo-include-and-envo-exclude) | — | biome evidence (action 2) | — |
 | [`envo_exclude`](#envo-include-and-envo-exclude) | — | rules a sample out | — |
@@ -128,18 +128,14 @@ curl -s "https://www.ebi.ac.uk/metagenomics/api/v1/biomes/root:Environmental:Aqu
 curl -s "https://www.ebi.ac.uk/metagenomics/api/v1/biomes/root:Environmental:Aquatic:Marine/children?page_size=100"
 ```
 
-- **survey:** counts the MGnify samples in scope (`mgnify_samples`). This is context only:
-  MGnify counts every analysed sample of the lineage, of any kingdom and including amplicon
-  studies.
-- **search:** a study's MGnify lineage is third-party curated biome evidence (action 1).
+Used by `search`: a study's MGnify lineage is third-party curated biome evidence (action 1).
 
 #### mgnify_lineages_exclude
 
 Descendants of `mgnify_lineages` that belong to another biome; each removes its whole
 subtree. Example: marine-water-euk lists `root:Environmental:Aquatic:Marine` and excludes
-its 11 sediment subtrees (`…:Marine:Sediment`, `…:Marine:Coastal:Sediment`, …), which takes
-the MGnify samples from 43,788 to 37,125. In `search`, a lineage in an excluded subtree is
-evidence against the biome.
+its 11 sediment subtrees (`…:Marine:Sediment`, `…:Marine:Coastal:Sediment`, …). In
+`search`, a lineage in an excluded subtree is evidence against the biome.
 
 **Where to look:** the children listing of each `mgnify_lineages` entry (above); exclude
 every child that belongs to another biome.

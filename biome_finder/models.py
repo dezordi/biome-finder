@@ -196,17 +196,6 @@ class MgnifyCatalogue:
     ftp_url: str
 
 
-# --- MGnify API v1 (https://www.ebi.ac.uk/metagenomics/api/v1): biomes ---
-
-
-@dataclass(frozen=True)
-class MgnifyBiome:
-    """One node of the biome tree, with the samples attached to that exact node."""
-
-    lineage: str
-    samples_count: int
-
-
 # --- MGnify FTP: a catalogue's genomes-all_metadata.tsv ---
 
 
