@@ -68,6 +68,7 @@ def test_report_writes_dashboard(tmp_path):
         "gbases_1m_kingdom": 1.5,
         "contigs_to_bin": 1,
         "runs_to_assemble": 1,
+        "gbases_to_assemble": 1.5,
         "mgnify_samples": 3,
     }
     rows = []
@@ -92,4 +93,4 @@ def test_report_writes_dashboard(tmp_path):
     report.write(tmp_path)
     html = (tmp_path / "report.html").read_text()
     assert "All catalogues" in html and "One catalogue" in html and "soil-v1-0" in html
-    assert "Genomes to add" in html
+    assert "MAGs to add" in html and "soil-prok *" in html

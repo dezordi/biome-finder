@@ -27,17 +27,28 @@ SUBMITTED, BY_MGNIFY = "MAGs (submitters)", "MAGs (MGnify)"
 ASSEMBLIES, RUNS = "Assemblies", "Runs ≥1M"
 KINDS = [SUBMITTED, BY_MGNIFY, ASSEMBLIES, RUNS]
 ROUTES = {
-    "Genomes to add": "→ genomes-catalogue-pipeline",
-    "Assemblies to bin": "→ genomes-generation",
-    "Runs to assemble": "→ miassembler, then genomes-generation",
+    "MAGs to add": "→ genomes-catalogue-pipeline",
+    "Samples to bin": "→ genomes-generation",
+    "Samples to assemble": "→ miassembler, then genomes-generation",
 }
 TOP_STUDIES = 15
+PROJECTS = (
+    "Projects are ENA/INSDC BioProjects (PRJEB, PRJNA, PRJDB): one submission grouping the samples "
+    "and data of one research effort, usually one paper. Counted per route: the projects holding "
+    "the MAGs, the MAGs to add, and the assemblies or runs of the samples to bin or assemble. "
+    "Many projects mean more varied data, and "
+    "more to curate, since curation reads each project's paper and metadata. For MAGs (MGnify), "
+    "the projects are MGnify's own analysis projects, not the original ones."
+)
 ACCENT = "#0072B2"
 COLORS = {
     SUBMITTED: "#0072B2",
     BY_MGNIFY: "#56B4E9",
     ASSEMBLIES: "#E69F00",
     RUNS: "#009E73",
+    "MAGs": "#0072B2",
+    "Samples to bin": "#E69F00",
+    "Samples to assemble": "#009E73",
     "short reads": "#009E73",
     "long reads": "#CC79A7",
     "in catalogue": "#BBBBBB",
@@ -47,38 +58,39 @@ COLORS = {
 }
 # column: (title, tooltip)
 COLUMNS = {
-    "biome": ("Catalogue", "The biome config: one catalogue per biome and kingdom, as in MGnify"),
+    "biome": (
+        "Catalogue",
+        "The biome config: one catalogue per biome and kingdom, as in MGnify. *: MGnify already has "
+        "this catalogue, so the survey counts an update",
+    ),
     "metagenome_taxon": ("Metagenome taxon", "ENA metagenome taxon the records were found under"),
     "tax_id": ("Tax ID", "NCBI tax ID of the metagenome taxon"),
     "kingdom": ("Kingdom", "prokaryotes (Bacteria + Archaea) or eukaryotes"),
-    "samples": (
-        "Samples",
-        "Distinct biological samples behind the kingdom's genomes (their source samples), " "assemblies and runs",
+    "mags": (
+        "MAGs",
+        "MAGs of the catalogue's kingdom in ENA: deposited by their authors, or produced by MGnify from "
+        "this biome's public data (ENA stores most of those as 'binned metagenome' records)",
     ),
-    "submitted": (SUBMITTED, "MAGs of the catalogue's kingdom deposited in ENA by their authors"),
-    "by_mgnify": (
-        BY_MGNIFY,
-        "Genomes MGnify produced from this biome's public data. ENA stores most of them as "
-        "'binned metagenome' records, a few as MAGs",
-    ),
-    "assemblies": (
-        ASSEMBLIES,
-        "Metagenome assemblies with evidence for the kingdom: a genome of that kingdom from the "
-        "same sample, or a project that names it (prokaryotes: all but eukaryote-only projects)",
-    ),
-    "runs": (RUNS, "Metagenomic WGS runs with at least 1 million reads and evidence for the kingdom"),
-    "gbases": ("Gbases", "Gigabases in those runs"),
-    "new_runs": ("New runs", "Of those runs, public after the MGnify catalogue's last update (blank: new catalogue)"),
     "to_add": (
-        "Genomes to add",
+        "MAGs to add",
         "MAGs (both kinds) not in the existing MGnify catalogue (all of them, for a new "
         "catalogue): ready for genomes-catalogue-pipeline",
     ),
-    "to_bin": ("Assemblies to bin", "Assemblies whose sample has no genome yet: input for genomes-generation"),
-    "to_assemble": (
-        "Runs to assemble",
-        "Runs ≥1M whose sample has neither a genome nor an assembly: input for " "miassembler, then genomes-generation",
+    "samples_bin": (
+        "Samples to bin",
+        "Samples with a metagenome assembly but no genome yet: input for genomes-generation. Only "
+        "assemblies with evidence for the kingdom count (a genome of that kingdom from the same sample, "
+        "or a project that names it). A sample can have several assemblies, e.g. by its submitter and "
+        "by MGnify; hover the routes chart for the assembly count",
     ),
+    "samples_assemble": (
+        "Samples to assemble",
+        "Samples with only reads (no genome, no assembly): input for miassembler, then "
+        "genomes-generation. Only metagenomic WGS runs with at least 1 million reads and evidence for "
+        "the kingdom count. A sample can have several runs (lanes, re-sequencing); hover the routes "
+        "chart for the run count",
+    ),
+    "tbases": ("Runs Tb", "Terabases (10^12 bases, not bytes) in the runs to assemble"),
 }
 FIGURE_LAYOUT = {
     "template": "plotly_white",
@@ -99,9 +111,10 @@ metagenome taxon its submitter chose (plus the host, for host-associated biomes)
 curation. Hover a column title for its definition.
 
 **Where new genomes would come from.** Each sample enters at its most processed public data:
-*genomes to add* are ready for the catalogue; *assemblies to bin* need binning first; *runs to
-assemble* need assembly and binning. Many genomes to add means the catalogue can grow now; many
-assemblies or runs means it would pay to generate new MAGs.
+*MAGs to add* are ready for the catalogue; *samples to bin* have assemblies that need binning
+first; *samples to assemble* have only reads, which need assembly and binning. Many MAGs to add
+means the catalogue can grow now; many samples to bin or assemble means it would pay to generate
+new MAGs. Samples, not records, because a sample can have several assemblies or runs.
 """
 
 
@@ -139,8 +152,8 @@ def load(out: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def samples(records: pd.DataFrame) -> pd.Series:
-    """Distinct samples behind the kingdom records, per (biome, metagenome taxon) plus TOTAL.
-    Genomes count their source samples (`derived from`), so a co-assembly counts all of them."""
+    """Distinct samples behind `records`, per (biome, metagenome taxon) plus TOTAL. Genomes
+    count their source samples (`derived from`), so a co-assembly counts all of them."""
     src = records["source_samples"].where(
         records["kind"].isin([SUBMITTED, BY_MGNIFY]) & (records["source_samples"] != ""), records["sample_accession"]
     )
@@ -154,24 +167,26 @@ def samples(records: pd.DataFrame) -> pd.Series:
 
 
 def totals(rows: pd.DataFrame, records: pd.DataFrame) -> pd.DataFrame:
-    """survey.tsv rows as the dashboard's kingdom-only columns."""
+    """survey.tsv rows as the dashboard's kingdom-only columns, with the samples of each route."""
     n = rows.fillna({c: 0 for c in rows.columns if pd.api.types.is_numeric_dtype(rows[c])})
+    routes = {
+        "samples_bin": (records["kind"] == ASSEMBLIES) & (records["route"] == "bin"),
+        "samples_assemble": (records["kind"] == RUNS) & (records["route"] == "assemble"),
+    }
+    keys = list(zip(rows["biome"], rows["metagenome_taxon"]))
+    per_route = {col: samples(records[mask]) for col, mask in routes.items()}
     return pd.DataFrame(
         {
             "biome": rows["biome"],
             "metagenome_taxon": rows["metagenome_taxon"],
             "tax_id": rows["tax_id"],
             "kingdom": rows["kingdom"],
-            "samples": [samples(records).get((b, x), 0) for b, x in zip(rows["biome"], rows["metagenome_taxon"])],
-            "submitted": n["mags"] - n["mags_mgnify"],
-            "by_mgnify": n["mags_mgnify"] + n["mgnify_bins"],
-            "assemblies": rows["contigs_kingdom"],
-            "runs": rows["runs_1m_kingdom"],
-            "gbases": rows["gbases_1m_kingdom"],
-            "new_runs": rows["runs_1m_kingdom_new"],
+            "mags": n["mags"] + n["mgnify_bins"],
             "to_add": n["mags_to_add"] + n["mgnify_bins_to_add"],
             "to_bin": rows["contigs_to_bin"],
             "to_assemble": rows["runs_to_assemble"],
+            **{col: [s.get(k, 0) for k in keys] for col, s in per_route.items()},
+            "tbases": rows["gbases_to_assemble"] / 1000,
         }
     ).reset_index(drop=True)
 
@@ -193,10 +208,12 @@ def figure(
     return fig.update_layout(FIGURE_LAYOUT | (layout or {}))
 
 
-def heatmap(matrix: pd.DataFrame, colorscale: str = "Blues") -> go.Figure:
-    """Counts as a heatmap: log-scaled color, the count written in each cell, height to fit."""
+def heatmap(matrix: pd.DataFrame, colorscale: str = "Blues", hover: pd.DataFrame | None = None) -> go.Figure:
+    """Counts as a heatmap: log-scaled color, the count written in each cell, height to fit.
+    `hover`, of the same shape, replaces the count in the hover label."""
     matrix = matrix.astype(float)
     text = matrix.map(lambda v: "" if pd.isna(v) or v == 0 else f"{v:,.0f}")
+    hover = text if hover is None else hover
     fig = go.Figure(
         go.Heatmap(
             z=np.log10(matrix.where(matrix > 0)),
@@ -208,7 +225,8 @@ def heatmap(matrix: pd.DataFrame, colorscale: str = "Blues") -> go.Figure:
             showscale=False,
             xgap=2,
             ygap=2,
-            hovertemplate="%{y} · %{x}: %{text}<extra></extra>",
+            customdata=hover.values,
+            hovertemplate="%{y} · %{x}: %{customdata}<extra></extra>",
         )
     )
     fig.update_yaxes(autorange="reversed", ticksuffix="  ")
@@ -250,12 +268,16 @@ def depth_figure(records: pd.DataFrame, by: str) -> go.Figure:
 
 
 def map_figure(records: pd.DataFrame, color: str, colors: dict[str, str]) -> go.Figure:
+    """Assemblies (circles) and runs (diamonds) on a 1° grid; MAGs have no coordinates in ENA.
+    Colored by `color`; when that isn't the kind, the legend lists each `color` value once and
+    a click or double-click acts on all its markers."""
+    keys = list(dict.fromkeys([color, "kind", "lat", "lon"]))
     data = (
         records[records["kind"].isin([ASSEMBLIES, RUNS])]
         .dropna(subset=["lat", "lon"])
         .assign(lat=lambda d: d["lat"].round(), lon=lambda d: d["lon"].round())
-        .groupby([color, "lat", "lon"], as_index=False)
-        .agg(records=("accession", "size"), studies=("study_accession", "nunique"))
+        .groupby(keys, as_index=False)
+        .agg(records=("accession", "size"), projects=("study_accession", "nunique"))
     )
     fig = figure(
         data,
@@ -265,14 +287,53 @@ def map_figure(records: pd.DataFrame, color: str, colors: dict[str, str]) -> go.
         lon="lon",
         size="records",
         color=color,
+        symbol="kind",
+        symbol_map={ASSEMBLIES: "circle", RUNS: "diamond"},
         color_discrete_map=colors,
-        hover_data=["records", "studies"],
+        hover_data=["kind", "records", "projects"],
         size_max=22,
         opacity=0.65,
         projection="natural earth",
     )
-    return fig.update_geos(
+    if color != "kind":  # one plain legend entry per group, whatever shapes it has
+        for trace in fig.data:
+            trace.update(legendgroup=trace.name.split(", ")[0], showlegend=False)
+        for group in dict.fromkeys(t.legendgroup for t in fig.data):
+            fig.add_scattergeo(
+                lat=[None], lon=[None], mode="markers", name=group, legendgroup=group, marker_color=colors[group]
+            )
+        fig.update_layout(legend_groupclick="togglegroup")
+    return kind_buttons(fig).update_geos(
         showcountries=True, countrycolor="#d0d0d0", showland=True, landcolor="#f4f4f4", showframe=False
+    )
+
+
+def kind_buttons(fig: go.Figure) -> go.Figure:
+    """Buttons showing assemblies, runs or both. They fade the other kind out (opacity 0, no
+    hover) instead of hiding its traces, so a catalogue isolated in the legend stays isolated."""
+    kinds = [t.name.split(", ")[-1] for t in fig.data]
+
+    def show(*shown: str) -> dict[str, Any]:
+        on = [k in shown or k not in (ASSEMBLIES, RUNS) for k in kinds]
+        return {"marker.opacity": [0.65 if o else 0 for o in on], "hoverinfo": ["all" if o else "skip" for o in on]}
+
+    buttons = [
+        {"label": "Both", "method": "restyle", "args": [show(ASSEMBLIES, RUNS)]},
+        {"label": "Assemblies", "method": "restyle", "args": [show(ASSEMBLIES)]},
+        {"label": "Runs", "method": "restyle", "args": [show(RUNS)]},
+    ]
+    return fig.update_layout(
+        updatemenus=[
+            {
+                "type": "buttons",
+                "direction": "right",
+                "buttons": buttons,
+                "x": 0,
+                "y": 0,
+                "xanchor": "left",
+                "yanchor": "bottom",
+            }
+        ]
     )
 
 
@@ -318,7 +379,7 @@ def donuts(rows: pd.DataFrame, records: pd.DataFrame) -> go.Figure:
         )
         domain = fig.data[-1].domain.x
         fig.add_annotation(
-            text=f"<b>+{sum(values[1:]):,}</b><br>genomes",
+            text=f"<b>+{sum(values[1:]):,}</b><br>MAGs",
             showarrow=False,
             font={"size": 14},
             x=sum(domain) / 2,
@@ -338,12 +399,26 @@ def donuts(rows: pd.DataFrame, records: pd.DataFrame) -> go.Figure:
     )
 
 
+def route_hover(t: pd.DataFrame) -> list[pd.Series]:
+    """Hover text of the three routes: the records behind each sample count."""
+
+    def fmt(col: str) -> pd.Series:
+        return t[col].map("{:,}".format)
+
+    return [
+        fmt("to_add") + " MAGs",
+        fmt("to_bin") + " assemblies from " + fmt("samples_bin") + " samples",
+        fmt("to_assemble") + " runs from " + fmt("samples_assemble") + " samples",
+    ]
+
+
 def routes_figure(total: pd.Series) -> go.Figure:
     """Where new genomes would come from, for one catalogue."""
     data = pd.DataFrame(
         {
             "route": [f"{k}<br><sup>{v}</sup>" for k, v in ROUTES.items()],
-            "n": [total["to_add"], total["to_bin"], total["to_assemble"]],
+            "n": [total["to_add"], total["samples_bin"], total["samples_assemble"]],
+            "detail": [h.iloc[0] for h in route_hover(total.to_frame().T)],
         }
     )
     fig = figure(
@@ -353,83 +428,52 @@ def routes_figure(total: pd.Series) -> go.Figure:
         y="route",
         orientation="h",
         text_auto=",.0f",
+        custom_data=["detail"],
         labels={"n": "", "route": ""},
         layout={"height": 230},
     )
-    return fig.update_traces(marker_color=[COLORS[SUBMITTED], COLORS[ASSEMBLIES], COLORS[RUNS]]).update_yaxes(
-        autorange="reversed"
-    )
+    return fig.update_traces(
+        marker_color=[COLORS[SUBMITTED], COLORS[ASSEMBLIES], COLORS[RUNS]],
+        hovertemplate="%{customdata[0]}<extra></extra>",
+    ).update_yaxes(autorange="reversed")
 
 
 # --- overview figures (all catalogues) ---
 
 
 def overview_routes(table_rows: pd.DataFrame) -> go.Figure:
-    m = table_rows.set_index("biome")[["to_add", "to_bin", "to_assemble"]]
-    return heatmap(
-        m.rename(
-            columns={
-                "to_add": "Genomes to add<br><sup>catalogue pipeline</sup>",
-                "to_bin": "Assemblies to bin<br><sup>genomes-generation</sup>",
-                "to_assemble": "Runs to assemble<br><sup>miassembler</sup>",
-            }
-        ),
-        "Greens",
-    )
+    t = table_rows.set_index("biome")
+    columns = [
+        "MAGs to add<br><sup>catalogue pipeline</sup>",
+        "Samples to bin<br><sup>genomes-generation</sup>",
+        "Samples to assemble<br><sup>miassembler</sup>",
+    ]
+    m = t[["to_add", "samples_bin", "samples_assemble"]].set_axis(columns, axis=1)
+    return heatmap(m, "Greens", hover=pd.DataFrame(dict(zip(columns, route_hover(t)))))
 
 
 def overview_studies(records: pd.DataFrame) -> go.Figure:
-    data = records.groupby(["biome", "kind"])["study_accession"].nunique().unstack()
-    return heatmap(data.reindex(columns=[k for k in KINDS if k in data]), "Blues")
-
-
-def overview_years(records: pd.DataFrame) -> go.Figure:
-    return heatmap(
-        records.dropna(subset=["first_public"])
-        .groupby(["biome", records["first_public"].dt.year])
-        .size()
-        .unstack()
-        .sort_index(axis=1),
-        "Purples",
-    )
-
-
-def overview_concentration(records: pd.DataFrame) -> go.Figure:
-    per_study = records.groupby(["biome", "study_accession"]).size().rename("n").reset_index()
-    top = (
-        per_study.sort_values("n", ascending=False)
-        .groupby("biome")
-        .agg(top=("n", lambda r: r.head(3).sum()), total=("n", "sum"))
-    )
-    data = (top["top"] / top["total"]).rename("share").reset_index().sort_values("share")
-    fig = figure(
-        data,
-        px.bar,
-        x="share",
-        y="biome",
-        orientation="h",
-        text_auto=".0%",
-        labels={"share": "share of records in the 3 largest studies", "biome": ""},
-        layout={"height": 70 + 26 * len(data)},
-    )
-    return fig.update_traces(marker_color=ACCENT).update_xaxes(tickformat=".0%", range=[0, 1])
-
-
-def overview_groups(records: pd.DataFrame) -> go.Figure:
-    genomes = records[records["kind"].isin([SUBMITTED, BY_MGNIFY])]
-    if genomes.empty:
-        return figure(genomes, px.bar)
-    return heatmap(genomes.groupby(["biome", "scope_taxon"]).size().unstack(), "Oranges")
+    """Projects holding each catalogue's MAGs and the records of each route."""
+    genome = records["kind"].isin([SUBMITTED, BY_MGNIFY])
+    groups = {
+        "MAGs": genome,
+        "MAGs to add": genome & (records["in_catalogue"] != "True"),
+        "Samples to bin": (records["kind"] == ASSEMBLIES) & (records["route"] == "bin"),
+        "Samples to assemble": (records["kind"] == RUNS) & (records["route"] == "assemble"),
+    }
+    data = pd.DataFrame({k: records[m].groupby("biome")["study_accession"].nunique() for k, m in groups.items()})
+    return heatmap(data.reindex(sorted(records["biome"].unique())), "Blues")
 
 
 # --- catalogue figures (one catalogue) ---
 
 
 def catalogue_records(taxa: pd.DataFrame) -> go.Figure:
+    kinds = ["mags", "samples_bin", "samples_assemble"]
     data = (
         taxa.melt(
             id_vars=["metagenome_taxon"],
-            value_vars=["submitted", "by_mgnify", "assemblies", "runs"],
+            value_vars=kinds,
             var_name="kind",
             value_name="n",
         )
@@ -447,7 +491,7 @@ def catalogue_records(taxa: pd.DataFrame) -> go.Figure:
         text_auto=",.0f",
         color_discrete_map=COLORS,
         labels={"metagenome_taxon": "", "n": ""},
-        category_orders={"kind": KINDS},
+        category_orders={"kind": [COLUMNS[k][0] for k in kinds]},
         layout={"height": 120 + 40 * taxa["metagenome_taxon"].nunique()},
     )
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
@@ -505,45 +549,12 @@ def top_studies_figure(records: pd.DataFrame) -> go.Figure:
     )
 
 
-def concentration_figure(records: pd.DataFrame) -> go.Figure:
-    per = records.groupby("study_accession").size().sort_values(ascending=False)
-    data = pd.DataFrame(
-        {"rank": range(1, len(per) + 1), "share": per.cumsum() / per.sum(), "study": per.index, "records": per.values}
-    )
-    fig = figure(
-        data,
-        px.line,
-        x="rank",
-        y="share",
-        log_x=True,
-        markers=len(data) < 30,
-        hover_data=["study", "records"],
-        labels={"rank": "studies, largest first", "share": "share of records"},
-    )
-    return fig.update_traces(line_color=ACCENT).update_yaxes(tickformat=".0%", range=[0, 1.02])
-
-
-def catalogue_groups(records: pd.DataFrame) -> go.Figure:
-    data = records[records["kind"].isin([SUBMITTED, BY_MGNIFY])].groupby(["scope_taxon", "kind"], as_index=False).size()
-    return figure(
-        data,
-        px.bar,
-        x="size",
-        y="scope_taxon",
-        color="kind",
-        orientation="h",
-        text_auto=",.0f",
-        color_discrete_map=COLORS,
-        category_orders={"kind": KINDS},
-        labels={"size": "genomes", "scope_taxon": "", "kind": ""},
-        layout={"height": 220},
-    )
-
-
 # --- layout ---
 
 
-def card(title: str, *objects: Any) -> pn.Card:
+def card(title: str, *objects: Any, tooltip: str = "") -> pn.Card:
+    """A titled card; `tooltip` adds an info icon next to the title."""
+    header = pn.Row(pn.pane.Markdown(title, margin=(0, 4)), pn.widgets.TooltipIcon(value=tooltip)) if tooltip else None
     return pn.Card(
         *[
             (
@@ -554,6 +565,7 @@ def card(title: str, *objects: Any) -> pn.Card:
             for o in objects
         ],
         title=title,
+        header=header,
         collapsible=False,
         sizing_mode="stretch_width",
         margin=8,
@@ -583,7 +595,7 @@ def table(frame: pd.DataFrame, columns: list[str], title: str) -> pn.Card:
             header_tooltips={c: COLUMNS[c][1] for c in cols},
             widths={cols[0]: 210},
             configuration={"columnDefaults": {"headerWordWrap": True}},
-            formatters={c: {"type": "money", "thousand": ",", "precision": 1 if c == "gbases" else 0} for c in numeric},
+            formatters={c: {"type": "money", "thousand": ",", "precision": 2 if c == "tbases" else 0} for c in numeric},
             text_align={c: "right" for c in numeric},
             header_align="center",
             stylesheets=[TABLE_CSS],
@@ -633,28 +645,23 @@ def overview(survey: pd.DataFrame, records: pd.DataFrame, colors: dict[str, str]
             ]
         ),
         table(
-            t,
+            t.assign(biome=t["biome"] + np.where(rows["catalogue"].notna().to_numpy(), " *", "")),
             [
                 "biome",
                 "kingdom",
-                "samples",
-                "submitted",
-                "by_mgnify",
-                "assemblies",
-                "runs",
-                "gbases",
-                "new_runs",
+                "mags",
                 "to_add",
-                "to_bin",
-                "to_assemble",
+                "samples_bin",
+                "samples_assemble",
+                "tbases",
             ],
-            "Totals per catalogue",
+            "Totals per catalogue (* already in MGnify: an update)",
         ),
     ]
     if existing:
         parts.append(
             card(
-                "Existing MGnify catalogues: MAGs now, and genomes not yet in them",
+                "Existing MGnify catalogues: MAGs now, and MAGs not yet in them",
                 note(
                     "Grey: MAGs in the current catalogue. Blue: MAGs found by the survey that the "
                     "catalogue doesn't have yet (from submitters, and produced by MGnify)."
@@ -665,13 +672,17 @@ def overview(survey: pd.DataFrame, records: pd.DataFrame, colors: dict[str, str]
     parts += [
         grid(
             card("Where new genomes would come from", overview_routes(t)),
-            card("Studies per catalogue", overview_studies(records)),
-            card("Genomes per organism group", overview_groups(records)),
-            card("Share of records in the 3 largest studies", overview_concentration(records)),
+            card("Projects per catalogue", overview_studies(records), tooltip=PROJECTS),
         ),
-        card("Records first public, per year", overview_years(records)),
         grid(card("Reads per run (box: 5th–95th percentile)", depth_figure(records, "biome"))),
-        card("Assembly and run locations (1° grid)", map_figure(records, "biome", colors)),
+        card(
+            "Assembly and run locations (1° grid)",
+            note(
+                "Circles: assemblies; diamonds: runs ≥1M (MAGs have no coordinates in ENA). The buttons "
+                "show one kind or both. Double-click a catalogue in the legend to show only it; double-click again to show all."
+            ),
+            map_figure(records, "biome", colors),
+        ),
     ]
     return pn.Column(*parts, sizing_mode="stretch_width")
 
@@ -696,13 +707,11 @@ def catalogue(rows: pd.DataFrame, records: pd.DataFrame) -> pn.Column:
         pn.pane.Markdown(headline(raw), sizing_mode="stretch_width", margin=(0, 16)),
         kpis(
             [
-                ("Samples", total["samples"], "{value:,}"),
-                (SUBMITTED, total["submitted"], "{value:,}"),
-                (BY_MGNIFY, total["by_mgnify"], "{value:,}"),
-                (ASSEMBLIES, total["assemblies"], "{value:,}"),
-                (RUNS, total["runs"], "{value:,}"),
-                ("Gbases", total["gbases"], "{value:,.0f}"),
-                ("New runs", total["new_runs"], "{value:,}"),
+                ("MAGs", total["mags"], "{value:,}"),
+                ("MAGs to add", total["to_add"], "{value:,}"),
+                ("Samples to bin", total["samples_bin"], "{value:,}"),
+                ("Samples to assemble", total["samples_assemble"], "{value:,}"),
+                ("Runs Tb", total["tbases"], "{value:,.2f}"),
             ]
         ),
     ]
@@ -711,7 +720,7 @@ def catalogue(rows: pd.DataFrame, records: pd.DataFrame) -> pn.Column:
         top.insert(
             0,
             card(
-                "MAGs now, and genomes not yet in the catalogue",
+                "MAGs now, and MAGs not yet in the catalogue",
                 donuts(rows[rows["metagenome_taxon"] == "TOTAL"], records),
             ),
         )
@@ -722,27 +731,28 @@ def catalogue(rows: pd.DataFrame, records: pd.DataFrame) -> pn.Column:
             [
                 "metagenome_taxon",
                 "tax_id",
-                "submitted",
-                "by_mgnify",
-                "assemblies",
-                "runs",
-                "gbases",
-                "new_runs",
+                "mags",
                 "to_add",
-                "to_bin",
-                "to_assemble",
+                "samples_bin",
+                "samples_assemble",
+                "tbases",
             ],
             "Counts per metagenome taxon",
         ),
         grid(
-            card("Records per metagenome taxon", catalogue_records(t[t["metagenome_taxon"] != "TOTAL"])),
+            card("MAGs and samples per metagenome taxon", catalogue_records(t[t["metagenome_taxon"] != "TOTAL"])),
             card("Cumulative records by first-public month", timeline_figure(records, raw["catalogue_updated"])),
-            card(f"Largest {TOP_STUDIES} studies", top_studies_figure(records)),
-            card("Share of records in the largest studies", concentration_figure(records)),
-            card("Genomes per organism group", catalogue_groups(records)),
+            card(f"Largest {TOP_STUDIES} projects", top_studies_figure(records), tooltip=PROJECTS),
             card("Reads per run (box: 5th–95th percentile)", depth_figure(records, "metagenome_taxon")),
         ),
-        card("Assembly and run locations (1° grid)", map_figure(records, "kind", COLORS)),
+        card(
+            "Assembly and run locations (1° grid)",
+            note(
+                "Circles: assemblies; diamonds: runs ≥1M (MAGs have no coordinates in ENA). "
+                "The buttons show one kind or both."
+            ),
+            map_figure(records, "kind", COLORS),
+        ),
     ]
     return pn.Column(*parts, sizing_mode="stretch_width")
 

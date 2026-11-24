@@ -174,8 +174,8 @@ The survey keeps every node under a `{mgnify_lineages}` entry and drops every no
 
 This is context only: MGnify counts every analysed sample in the lineage, of any kingdom and
 including amplicon studies, so it is not a count for the catalogue's kingdom. The dashboard shows
-**Samples** instead: the distinct samples behind the kingdom's genomes (their `derived from` source
-samples), assemblies and runs (marine-water-euk: 2,799).
+the distinct samples of two routes instead: **Samples to bin** and **Samples to assemble**
+(marine-water-euk: 974 and 1,713).
 
 ### 3. Tax IDs (`metagenome_taxa`, `kingdom`)
 
@@ -302,31 +302,37 @@ survey/
 It has two tabs: **All catalogues**, and **One catalogue**, where a dropdown picks the
 catalogue (biome config). Every catalogue view is precomputed into the page, so it works
 offline with no server. Tables sort by clicking a column header; in the charts, hover for
-values, drag to zoom, double-click to reset, and click a legend entry to hide it.
+values, drag to zoom, double-click to reset, and click a legend entry to hide it, or double-click it to show only that entry.
 
 Everything in the dashboard is for the catalogue's kingdom: its genomes, and only the
-assemblies and runs with evidence for that kingdom. Genomes are shown as **MAGs
+assemblies and runs with evidence for that kingdom. Tables and indicators show one **MAGs**
+count; the donuts of existing catalogues split the MAGs not yet in them into **MAGs
 (submitters)**, deposited by their authors, and **MAGs (MGnify)**, produced by MGnify from
 public data (ENA stores most of these as `binned metagenome` records). Hover a table column
-title for its definition. The overview compares many catalogues with **heatmaps** (count in
+title, or the ⓘ next to a card title, for its definition. The overview compares many catalogues with **heatmaps** (count in
 each cell, color on a log scale); a catalogue view uses bars.
 
 | Card | All catalogues | One catalogue |
 |---|---|---|
-| Header and indicators | number of catalogues, updates vs new, prokaryote vs eukaryote | the catalogue: new, or update of an MGnify catalogue (species, genomes, MAGs, last update); then samples (behind the kingdom's records), MAGs (submitters / MGnify), assemblies, runs ≥ 1 M, gigabases, new runs |
-| Table | totals per catalogue (no existing-catalogue details) | one row per metagenome taxon, plus TOTAL |
+| Header and indicators | number of catalogues, updates vs new, prokaryote vs eukaryote | the catalogue: new, or update of an MGnify catalogue (species, genomes, MAGs, last update); then MAGs and the three routes: MAGs to add, samples to bin, samples to assemble (with the terabases of their runs, Runs Tb) |
+| Table | totals per catalogue: MAGs and the three routes; `*` marks catalogues MGnify already has (an update) | one row per metagenome taxon, plus TOTAL |
 | Existing catalogues | a donut per catalogue: MAGs in it now (grey) and the MAGs not yet in it, from submitters and from MGnify, with the total gain | the same for the catalogue |
-| Where new genomes would come from | heatmap: genomes to add (→ genomes-catalogue-pipeline), assemblies to bin (→ genomes-generation), runs to assemble (→ miassembler) | the same as bars |
-| Studies | heatmap: studies with each kind of record | the 15 largest studies; MGnify's own are marked "(MGnify)" |
-| Genomes per organism group | heatmap: Bacteria / Archaea / Eukaryota | bars, split into submitters and MGnify |
-| Concentration | share of records in the 3 largest studies | cumulative share of records by study |
-| Records over time | heatmap: records first public per year | cumulative records per month, dotted line at the catalogue's last update |
+| Where new genomes would come from | heatmap: MAGs to add (→ genomes-catalogue-pipeline), samples to bin (→ genomes-generation), samples to assemble (→ miassembler); hover for the assemblies or runs behind the samples | the same as bars |
+| Projects | heatmap: ENA projects (BioProjects) holding the MAGs, the MAGs to add, and the records of the samples to bin or assemble | the 15 largest projects; MGnify's own are marked "(MGnify)" |
+| Records over time | — | cumulative records per month, dotted line at the catalogue's last update |
 | Reads per run | 5th–95th percentile boxes, short vs long reads | per metagenome taxon |
-| Map | assemblies and runs with coordinates on a 1° grid (MAGs have none in ENA) | per kind of record |
+| Map | assemblies (circles) and runs (diamonds) with coordinates on a 1° grid (MAGs have none in ENA), colored by catalogue; double-click a catalogue in the legend to show only it; buttons show assemblies, runs or both | colored by kind of record, with the same buttons |
 
-How to read the routes: many **genomes to add** means the catalogue can grow now; many
-**assemblies to bin** means it would pay to run binning on public assemblies; many **runs to
-assemble** means it would pay to assemble from reads first.
+How to read the routes: many **MAGs to add** means the catalogue can grow now; many
+**samples to bin** means it would pay to run binning on public assemblies; many **samples to
+assemble** means it would pay to assemble from reads first. The routes count samples, not
+records, because the sample is the unit of curation and one sample can have several assemblies
+(e.g. by its submitter and by MGnify) or runs (lanes, re-sequencing): marine-water-euk has
+1,236 assemblies from 974 samples to bin and 1,931 runs from 1,713 samples to assemble. A
+sample whose data is already further processed (a genome, or for reads an assembly) is left
+out, because each sample enters at its most processed public data. The record counts
+(`contigs_to_bin`, `runs_to_assemble`) and the full ones (`contigs_kingdom`,
+`runs_1m_kingdom`) stay in `survey.tsv`.
 
 ## `survey.tsv` columns
 
