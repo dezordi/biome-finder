@@ -123,7 +123,9 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
   (`long_read`, `deferred_long_read`), but don't route them for now.
 - Each sample enters at its most processed public data: genomes > contigs > reads.
   Lower-level rows stay in the table as `not_selected`. Never re-assemble or re-bin
-  something that is already public.
+  something that is already public. Check this by sample (every assembly or WGS set ENA links
+  to it, of any type; PROPOSAL.md §3.10, B.6), not only through the searches by taxon. Only a
+  genome of the catalogue's kingdom covers a sample.
 - Deduplicate ENA sets against NCBI GCAs by BioSample. Flag SPIRE bins and re-assemblies
   (mag-provenance). For updates, flag genomes already in the existing catalogue.
 - **When in doubt, leave it out.** A wrong-biome genome in a catalogue is worse than a

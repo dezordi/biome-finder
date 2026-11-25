@@ -17,3 +17,4 @@ MIN_READS = 1_000_000  # the survey's "runs ≥ 1 M"
 
 KINGDOM_TAXA = {"prokaryotes": [2, 2157], "eukaryotes": [2759]}  # Bacteria + Archaea; Eukaryota
 EXCLUDED_TAXA = [10239, 33208, 58023, 2870]  # Viruses, Metazoa, Tracheophyta, Phaeophyceae
+METAGENOMES = 408169  # the 'metagenomes' node: every '<environment> metagenome' taxon sits under it

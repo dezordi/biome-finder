@@ -7,9 +7,21 @@ import re
 import urllib.parse
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
+from typing import Any
 
 from ..log import warn
-from ..models import M, EnaSample, EnaSearch, EnaStudy, EnaTaxon, Response, columns, from_row
+from ..models import (
+    M,
+    EnaLinkedAnalysis,
+    EnaLinkedWgs,
+    EnaSample,
+    EnaSearch,
+    EnaStudy,
+    EnaTaxon,
+    Response,
+    columns,
+    from_row,
+)
 from .http import batches, first_status, get
 
 PORTAL = "https://www.ebi.ac.uk/ena/portal/api"
@@ -23,7 +35,11 @@ csv.field_size_limit(10**9)
 
 
 def count(request: EnaSearch) -> int:
-    text = get(f"{PORTAL}/count", {"result": request.result, "query": request.query}).data
+    """Rows a query would return. A long query (e.g. hundreds of sample IDs) goes by POST, since it
+    would not fit in a URL; short ones stay GET, keeping their cache keys."""
+    form: dict[str, str] = {"result": request.result, "query": request.query}
+    res = get(f"{PORTAL}/count", data=dict(form)) if len(request.query) > 1500 else get(f"{PORTAL}/count", form)
+    text = res.data
     return int(text.split()[-1]) if text else 0
 
 
@@ -68,6 +84,23 @@ def sample_hosts(accessions: Iterable[str]) -> Response[list[EnaSample]]:
         for b in batches(accessions - primary, 100)
     ]
     return Response(first_status(responses), [s for r in responses for s in r.data])
+
+
+def sample_assemblies(samples: Iterable[str], clause: str = "") -> Response[list[EnaLinkedWgs | EnaLinkedAnalysis]]:
+    """Every assembly or genome ENA links to these samples, of any type, taxon or submitter, as a
+    sample's page in the ENA Browser lists them: assembly analyses and WGS sets. `clause` narrows
+    them (e.g. ` AND NOT tax_tree(2759)`). 200 samples per query, by their primary IDs."""
+    statuses: list[Response[Any]] = []
+    found: list[EnaLinkedWgs | EnaLinkedAnalysis] = []
+    for b in batches(samples, 200):
+        ids = " OR ".join(f'sample_accession="{s}"' for s in b)
+        analyses = search(
+            EnaSearch("analysis", f"analysis_type=SEQUENCE_ASSEMBLY AND ({ids}){clause}"), EnaLinkedAnalysis
+        )
+        wgs = search(EnaSearch("wgs_set", f"({ids}){clause}"), EnaLinkedWgs)
+        statuses += [analyses, wgs]
+        found += [*analyses.data, *wgs.data]
+    return Response(first_status(statuses), found)
 
 
 def studies(accessions: Iterable[str]) -> Response[list[EnaStudy]]:

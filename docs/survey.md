@@ -237,6 +237,10 @@ sample's metagenome taxon. Example: **235** eukaryote genomes.
 POST ENA Portal  result=study  includeAccessions={studies of the assemblies and runs}
                  → study_title, study_description
 GET  ENA Browser /xml/{MAG and bin sample IDs}             → their source samples
+POST ENA Portal  result=analysis  query=analysis_type=SEQUENCE_ASSEMBLY AND ({samples on a route})
+                                        AND (tax_tree({kingdom group}) OR tax_tree(408169)) AND NOT tax_tree(…)…
+POST ENA Portal  result=wgs_set   query=({samples on a route}) AND (…same organism clause…)
+                 → every assembly or genome ENA links to those samples (200 samples per query)
 ```
 
 - **Kingdom evidence** (assemblies and runs): `genome` if the sample is the source of a MAG or
@@ -249,6 +253,18 @@ GET  ENA Browser /xml/{MAG and bin sample IDs}             → their source samp
 - **Routes**: an assembly with eukaryote evidence whose sample has no genome is *to bin*
   (4,205 from 2,090 samples); a run ≥ 1 M with eukaryote evidence whose sample has neither a
   genome nor an assembly is *to assemble* (680 runs from 623 samples, 9,991 Gbases).
+- **Data already linked to each sample**: the searches above go by metagenome taxon and
+  organism, so an assembly or genome filed otherwise is missed. Every sample still on a route
+  is then looked up the way its ENA page lists its data: any assembly analysis or WGS set of
+  the sample whose organism is in the config's kingdom or is a metagenome (408169), minus the
+  excluded taxa. An untyped WGS set with a metagenome as organism (how NCBI-submitted
+  metagenome assemblies look) becomes a new assembly record on the *to bin* route, and the
+  sample's runs become *covered*. A genome of the kingdom covers the sample (its study goes to
+  `covered_by`). A genome whose organism is the metagenome itself covers nothing: its kingdom is
+  unknown, and organelle bins are filed this way (PRJEB95915, the Freshwater Mitochondrial
+  Atlas, holds ~20,000). Co-assemblies sit under a sample of their own and stay unseen. Example:
+  nothing changes for marine-water-euk; soil-prok gains 265 assemblies (249 samples move from
+  *to assemble* to *to bin*) and freshwater-water-prok 580 (580 samples).
 
 ### 8. Summaries and outputs
 
@@ -335,7 +351,7 @@ out, because each sample enters at its most processed public data. The record co
 | `mgnify_bins_new` | of those, first public on or after the cutoff |
 | `mgnify_bins_to_add` | MGnify bins not in the existing catalogue (all, for a new catalogue) |
 | `mag_studies` | studies with MAGs |
-| `assemblies` | unbinned metagenome assemblies (`primary metagenome` analyses in ENA, submitter- or MGnify-produced) |
+| `assemblies` | unbinned metagenome assemblies (`primary metagenome` analyses in ENA, submitter- or MGnify-produced), plus those found by sample for samples on the *to assemble* route (untyped WGS sets, see *Data already linked to each sample*) |
 | `assemblies_mgnify` | of those, assemblies produced by MGnify (deposited in an ENA study whose center contains `EMG`) |
 | `assemblies_kingdom` | of those, assemblies with evidence for the config's kingdom (see *Kingdom evidence*) |
 | `assemblies_to_bin` | of those, assemblies whose sample has no genome yet |
@@ -365,7 +381,8 @@ on or after the catalogue cutoff), `read_count`, `base_count`, `library_layout`,
 `instrument_platform`, `center_name` and `assembly_software` (assemblies),
 `kingdom_evidence`, `kingdom_match` and `kingdom_terms` (assemblies and runs: see *Kingdom evidence*),
 `in_catalogue` (MAGs and bins already in the existing catalogue), `route` (assemblies and runs:
-`bin`, `assemble` or `covered`),
+`bin`, `assemble` or `covered`), `covered_by` (the studies of the genomes that cover the record's
+sample),
 `scope_taxon`, `tax_id` and `scientific_name` (MAG organism),
 `source_samples` (MGnify bins, and MAGs in host biomes: the `derived from` samples) and `host`,
 `country`, `lat`, `lon`, `collection_date`. Fields that don't apply to a data type are

@@ -423,6 +423,16 @@ for the sample:
   Lower-level rows of the same sample stay in the table, with
   `prepare_status = not_selected`, so they remain traceable. Nothing public is re-binned
   or re-assembled.
+- **What a sample already has is checked by sample**, the way its ENA page lists it: every
+  assembly analysis and WGS set linked to the sample, of any type or submitter, whose organism is
+  in the catalogue's kingdom or is a metagenome (query in B.6). Searches by taxon miss data filed
+  otherwise: NCBI metagenome assemblies stored as untyped WGS sets, submitters' bins, genomes
+  without `metagenome_source`. A genome of the kingdom covers the sample; an unbinned assembly
+  found makes its runs `not_selected` and becomes the sample's `contigs` row. A genome whose
+  organism is the metagenome itself covers nothing: its kingdom is unknown, and organelle bins
+  are filed this way too (e.g. PRJEB95915, the Freshwater Mitochondrial Atlas). `survey` already
+  runs this check for every sample on a route. Co-assemblies sit under a sample of their own,
+  linked to the originals by `derived from`; only `search` follows those links.
 
 ### 3.11 Papers that can't be read automatically
 
@@ -884,6 +894,21 @@ curl -X GET "https://www.ebi.ac.uk/ena/portal/api/search?dataPortal=ena&fields=s
 
 These are the vendored `fetch_ena.py` (by ENA project; QS50 pre-filter; completeness and
 contamination CSV) and `fetch_ncbi.py` (by GCA list). See §4.1.
+
+### B.6 Data already linked to a sample
+
+```bash
+# 200 samples per query; the sample list and the clause are filled in by the code
+curl -X POST https://www.ebi.ac.uk/ena/portal/api/search -d result=analysis \
+  --data-urlencode 'query=analysis_type=SEQUENCE_ASSEMBLY AND (sample_accession="SAMEA…" OR …) AND (tax_tree(2) OR tax_tree(2157) OR tax_tree(408169)) AND NOT tax_tree(10239) …' \
+  -d fields=analysis_accession,sample_accession,assembly_type,tax_id,scientific_name,study_accession -d format=tsv
+# the same with result=wgs_set and fields=accession,sample_accession,assembly_type,tax_id,scientific_name,study_accession
+```
+
+The organism must be in the catalogue's kingdom (here prokaryotes: 2, 2157) or a metagenome
+(408169), minus the excluded taxa, so a bacterial MAG doesn't cover a sample for a eukaryote
+catalogue. An untyped WGS set whose organism is a metagenome (`soil metagenome`) is an unbinned
+assembly; a genome with a metagenome as organism has no known kingdom and covers nothing.
 
 ---
 

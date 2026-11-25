@@ -129,6 +129,55 @@ class EnaBin:
     scientific_name: str
 
 
+def is_community(assembly_type: str, scientific_name: str) -> bool:
+    """An unbinned metagenome assembly rather than a genome: typed `primary metagenome`, or
+    untyped with a metagenome as its organism (how NCBI-submitted ones look in ENA)."""
+    kind = assembly_type.lower()
+    return kind == "primary metagenome" or (not kind and "metagenome" in scientific_name.lower())
+
+
+@dataclass(frozen=True)
+class EnaLinkedWgs:
+    """A WGS set linked to a sample, of any type (`wgs_set`)."""
+
+    accession: str
+    study_accession: str
+    sample_accession: str
+    first_public: str
+    assembly_type: str  # "Metagenome-Assembled Genome (MAG)", empty, …
+    tax_id: str
+    scientific_name: str  # the organism, or the metagenome itself
+    country: str
+    collection_date: str
+
+    @property
+    def community(self) -> bool:
+        return is_community(self.assembly_type, self.scientific_name)
+
+
+@dataclass(frozen=True)
+class EnaLinkedAnalysis:
+    """An assembly analysis linked to a sample, of any type (`analysis`, SEQUENCE_ASSEMBLY)."""
+
+    accession: str = column("analysis_accession")
+    study_accession: str = column("study_accession")
+    sample_accession: str = column("sample_accession")
+    first_public: str = column("first_public")
+    assembly_type: str = column("assembly_type")
+    tax_id: str = column("tax_id")
+    scientific_name: str = column("scientific_name")
+    center_name: str = column("center_name")
+    assembly_software: str = column("assembly_software")
+    country: str = column("country")
+    lat: str = column("lat")
+    lon: str = column("lon")
+    collection_date: str = column("collection_date")
+
+    @property
+    def community(self) -> bool:
+        return is_community(self.assembly_type, self.scientific_name)
+
+
 @dataclass(frozen=True)
 class EnaRun:
     """A read run (`read_run`)."""

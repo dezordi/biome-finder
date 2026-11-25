@@ -18,6 +18,7 @@ from .constants import (
     CONTIG_LAYER,
     EXCLUDED_TAXA,
     KINGDOM_TAXA,
+    METAGENOMES,
     LONG_READ_PLATFORMS,
     MAG_LAYER,
     METAGENOMIC_WGS,
@@ -96,6 +97,7 @@ RECORD_COLUMNS = [
     "kingdom_terms",
     "in_catalogue",
     "route",
+    "covered_by",
     "scope_taxon",
     "tax_id",
     "scientific_name",
@@ -344,6 +346,60 @@ def kingdom_evidence(cfg: Config, genomes: list[Record], contigs: list[Record], 
         )
 
 
+def linked_assemblies(
+    cfg: Config, contigs: list[Record], runs: list[Record], mgnify_studies: set[str], cutoff: str
+) -> list[Record]:
+    """survey finds assemblies by metagenome taxon and genomes by organism, so an assembly or
+    genome filed otherwise (an NCBI metagenome assembly as a WGS set, a MAG with the metagenome as
+    its organism, a submitter's bin) is missed, and its sample would be sent to be assembled or
+    binned again. So every sample still on a route is looked up the way its ENA page lists its
+    data: any assembly analysis or WGS set of the sample whose organism is in the config's
+    kingdom or is a metagenome, minus the excluded taxa (`ena.sample_assemblies`).
+
+    A genome of the config's kingdom covers its sample: the sample's assemblies and runs become
+    `covered`, with the genome's study in `covered_by`. A genome whose organism is the metagenome
+    itself covers nothing, since its kingdom is unknown (organelle bins are filed this way too). An unbinned metagenome assembly found for a sample sent to
+    assembly becomes a new assembly record (route `bin`, the sample's kingdom evidence) and the
+    sample's runs become `covered`. Co-assemblies, filed under a sample of their own, stay unseen.
+    Returns the new assembly records."""
+    on_route = {r["sample_accession"] for r in contigs + runs if r.get("route") in ("bin", "assemble")}
+    trees = " OR ".join(f"tax_tree({t})" for t in [*KINGDOM_TAXA[cfg["kingdom"]], METAGENOMES])
+    found = ena.sample_assemblies(on_route, f" AND ({trees}){taxa_filter(cfg)}").data
+    genome_studies: dict[str, set[str]] = defaultdict(set)
+    for a in found:
+        if not a.community and "metagenome" not in a.scientific_name.lower():
+            genome_studies[a.sample_accession].add(a.study_accession)
+    to_assemble = {r["sample_accession"]: r for r in runs if r.get("route") == "assemble"}
+    known = {r["accession"] for r in contigs}
+    new: list[Record] = []
+    for a in found:
+        run = to_assemble.get(a.sample_accession)
+        if a.community and run and a.accession not in known:
+            known.add(a.accession)
+            new.append(
+                {
+                    **asdict(a),
+                    "data_type": "contigs",
+                    "metagenome_taxon": run["metagenome_taxon"],
+                    "is_new": (a.first_public >= cutoff) if cutoff else "",
+                    "from_mgnify": a.study_accession in mgnify_studies,
+                    **{k: run[k] for k in ("kingdom_evidence", "kingdom_terms", "kingdom_match")},
+                    "covered_by": "",
+                    "route": "bin",
+                }
+            )
+    assembled = {r["sample_accession"] for r in new}
+    for r in contigs + runs + new:
+        s = r["sample_accession"]
+        if r.get("route") in ("bin", "assemble") and s in genome_studies:
+            r["route"] = "covered"
+            r["covered_by"] = ";".join(sorted(set(filter(None, r["covered_by"].split(";"))) | genome_studies[s]))
+    for r in runs:
+        if r.get("route") == "assemble" and r["sample_accession"] in assembled:
+            r["route"] = "covered"
+    return new
+
+
 def catalogue_membership(cat: MgnifyCatalogue | None, genomes: list[Record]) -> int | str:
     """Flag MAGs and bins already in the MGnify catalogue `cat` (matched by accession or by the
     genome's own sample). Returns the catalogue's MAG count ("" without a catalogue)."""
@@ -433,6 +489,9 @@ def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
         all_runs += runs
     bins = mgnify_bins(cfg, scope, all_contigs + all_runs, cutoff)
     kingdom_evidence(cfg, all_mags + bins, all_contigs, all_runs)
+    for r in linked_assemblies(cfg, all_contigs, all_runs, mgnify_studies, cutoff):
+        per_taxon[r["metagenome_taxon"]][2].append(r)
+        all_contigs.append(r)
     base["catalogue_mags"] = catalogue_membership(cat, all_mags + bins)
     rows = [
         {

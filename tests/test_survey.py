@@ -1,5 +1,6 @@
 from biome_finder.clients import ena, mgnify
 from biome_finder.models import (
+    EnaLinkedWgs,
     EnaBin,
     EnaMag,
     EnaRun,
@@ -301,3 +302,37 @@ def test_ena_search_rejects_unknown_result_and_unfiltered_search():
         EnaSearch("read_runs", "tax_eq(408172)")
     with pytest.raises(ValueError, match="needs a query or accessions"):
         EnaSearch("read_run")
+
+
+def test_linked_assemblies_cover_samples_survey_missed(monkeypatch):
+    from biome_finder import survey
+
+    def wgs(acc, sample, kind, organism):
+        return EnaLinkedWgs(acc, "P2", sample, "2024-01-01", kind, "410658", organism, "", "")
+
+    found = [
+        wgs("NCBI_ASM", "S_asm", "", "soil metagenome"),  # an NCBI metagenome assembly as a WGS set
+        wgs("MAG_X", "S_mag", "Metagenome-Assembled Genome (MAG)", "Nitrospira sp."),
+        wgs("MAG_Y", "S_bin", "Metagenome-Assembled Genome (MAG)", "Nitrospira sp."),
+        wgs("MITO", "S_free", "binned metagenome", "freshwater metagenome"),  # kingdom unknown: covers nothing
+    ]
+    seen = {}
+
+    def fake(samples, clause=""):
+        seen["samples"], seen["clause"] = set(samples), clause
+        return Response(200, found)
+
+    monkeypatch.setattr(ena, "sample_assemblies", fake)
+    evidence = {"kingdom_evidence": "none", "kingdom_terms": "", "kingdom_match": True, "covered_by": ""}
+    runs = [
+        {"accession": f"R_{s}", "sample_accession": s, "metagenome_taxon": "soil metagenome", "route": "assemble"}
+        | evidence
+        for s in ("S_asm", "S_mag", "S_free")
+    ]
+    contigs = [{"accession": "ERZ1", "sample_accession": "S_bin", "route": "bin"} | evidence]
+    new = survey.linked_assemblies({"kingdom": "prokaryotes"}, contigs, runs, set(), "")
+    assert seen["samples"] == {"S_asm", "S_mag", "S_free", "S_bin"}
+    assert seen["clause"].startswith(" AND (tax_tree(2) OR tax_tree(2157) OR tax_tree(408169))")
+    assert [(r["accession"], r["route"], r["data_type"]) for r in new] == [("NCBI_ASM", "bin", "contigs")]
+    assert [r["route"] for r in runs] == ["covered", "covered", "assemble"]
+    assert contigs[0]["route"] == "covered" and contigs[0]["covered_by"] == "P2"  # a genome covers it
