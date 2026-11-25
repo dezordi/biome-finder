@@ -327,7 +327,7 @@ convinced… leave it out").
 
 **Calibration.** Weights and thresholds are fitted on `marine_euks.tsv`:
 
-- **Biome:** `Curated Biome`, `Keep` and `Kate's decision` are the ground truth.
+- **Biome:** `Curated Biome`, `Keep` and `Curator decision` are the ground truth.
 - **Data type:** `Category` is the ground truth.
 - **Targets:** tier A ≥ 95% concordant with the manual decision, and tier C ≤ 30% of
   records.
