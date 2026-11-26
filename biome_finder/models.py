@@ -254,3 +254,45 @@ class MgnifyCatalogueGenome:
     genome_type: str = column("Genome_type")  # MAG | Isolate
     genome_accession: str = column("Genome_accession")
     sample_accession: str = column("Sample_accession")
+
+
+# --- NCBI Taxonomy: monthly new_taxdump archive (ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_archive) ---
+
+
+NCBI_RANKS = ("domain", "kingdom", "phylum", "class", "order", "family", "genus", "species")
+
+
+@dataclass(frozen=True)
+class NcbiTaxon:
+    """A taxon of one taxdump release (`nodes.dmp`, `rankedlineage.dmp`, `taxidlineage.dmp`).
+    Each rank field holds the name at that rank, the taxon's own rank included, and None where
+    the lineage has no taxon at that rank (e.g. no kingdom for most Bacteria). For viruses,
+    `domain` is their realm."""
+
+    tax_id: str
+    name: str
+    rank: str  # the taxon's own rank: species, genus, strain, no rank, …
+    domain: str | None
+    kingdom: str | None
+    phylum: str | None
+    class_: str | None  # `class` is a Python keyword
+    order: str | None
+    family: str | None
+    genus: str | None
+    species: str | None
+    ancestors: frozenset[str]  # tax IDs above it
+
+    @property
+    def ranks(self) -> dict[str, str | None]:
+        """NCBI_RANKS → name or None, root first."""
+        return {r: getattr(self, "class_" if r == "class" else r) for r in NCBI_RANKS}
+
+
+@dataclass(frozen=True)
+class NcbiTaxdump:
+    """The part of a taxdump release a set of tax IDs needs."""
+
+    release: str  # YYYY-MM-01
+    merged: dict[str, str]  # old tax ID → current one (`merged.dmp`)
+    deleted: frozenset[str]  # `delnodes.dmp`, among the requested IDs
+    taxa: dict[str, NcbiTaxon]  # by current tax ID

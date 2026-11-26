@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -56,6 +57,33 @@ def get(
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache.write_text(text)
     return Response(status, text)
+
+
+def download(url: str, retries: int = 5) -> Response[Path | None]:
+    """A file saved once under the cache's `files/` folder, by its name, for files that never
+    change once published (e.g. a monthly taxdump release). 404 gives `Response(404, None)`."""
+    path = CACHE_DIR / "files" / url.rsplit("/", 1)[-1]
+    if path.exists():
+        return Response(200, path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    part = path.with_suffix(path.suffix + ".part")
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=300) as r, open(part, "wb") as f:
+                shutil.copyfileobj(r, f, 1 << 20)
+            part.rename(path)
+            return Response(200, path)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return Response(404, None)
+            if e.code not in (429, 500, 502, 503, 504) or attempt == retries - 1:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == retries - 1:
+                raise
+        time.sleep(2**attempt)
+    raise RuntimeError(f"download failed: {url}")
 
 
 def first_status(responses: Iterable[Response]) -> int:

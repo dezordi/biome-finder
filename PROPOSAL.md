@@ -239,13 +239,16 @@ is the benchmark for data-type assignment.
 
 ### 3.5 Taxonomy
 
-Each row keeps the taxonomy **as reported** and the taxonomy **resolved against a given
-NCBI Taxonomy release**:
+Each row keeps the taxonomy **as reported** and its lineage **in a given NCBI Taxonomy
+release**. ENA keeps the reported tax ID and name current (in freshwater-water-prok, 2026-11,
+no tax ID resolves to another and names differ only by NCBI renames of the same taxon), so
+no resolved tax ID or name is stored:
 
 - `--taxdump YYYY-MM-DD` picks `new_taxdump_<YYYY-MM>-01.zip` from the NCBI archive; the
   default is the latest release.
-- Merged tax IDs are replaced (`merged.dmp`). Deleted ones are flagged `taxid_deleted`
-  (`delnodes.dmp`).
+- Merged tax IDs are followed to the current one (`merged.dmp`). Deleted ones are flagged `taxid_deleted`
+  (`delnodes.dmp`), and IDs missing from the release `taxid_unknown`. Neither is put out of
+  scope: ENA can still use a tax ID NCBI deleted, so the curator decides.
 - `domain` (prokaryote / eukaryote) and the out-of-scope taxa filter use the **resolved**
   lineage.
 - For `contigs`/`reads`, the taxon is the sample's metagenome taxon (e.g. "lake sediment
@@ -264,7 +267,7 @@ NCBI Taxonomy release**:
 | `related_accessions` | Runs behind a `contigs` record; ERZ/MAGs derived from a `reads` record |
 | `study_accession`, `secondary_study_accession`, `bioproject` | PRJ* / ERP·SRP·DRP |
 | `reported_tax_id`, `reported_tax_name` | As shown in the database record |
-| `tax_id`, `tax_name`, `tax_lineage`, `domain` | Resolved against NCBI Taxonomy at `taxdump_date` |
+| `tax_lineage`, `domain` | Resolved against NCBI Taxonomy at `taxdump_date`. `tax_lineage` holds the eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where the lineage has no taxon at that rank |
 | `taxdump_date` | The taxdump release used |
 | `publication` | DOI / PMID (`;`-separated) and the link type (`describes` vs `cites`) |
 | `paper_access` | `open_access` · `pdf_provided` · `needs_pdf` · `not_needed` · `no_paper` |
@@ -276,7 +279,7 @@ NCBI Taxonomy release**:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `X` excluded |
 | `needs_curation` | bool (tier C, any conflict, or `data_type = unknown`) |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |
@@ -527,7 +530,7 @@ copy as `samples.tsv.bak`.
 - **Kingdoms are split** by the resolved `domain`, because the pipeline runs once per
   `--kingdom`.
 - **Eukaryotes → datascout input.** `datascout_samplesheet.csv` has the columns
-  `sample_id,genome,taxid,assembly_file`: the GCA accession, the **resolved** `tax_id`,
+  `sample_id,genome,taxid,assembly_file`: the GCA accession, `reported_tax_id`,
   and the downloaded FASTA. The protein evidence that
   [datascout](https://github.com/EBI-Metagenomics/datascout) produces is then passed to
   the catalogue pipeline as `--protein_evidence`.

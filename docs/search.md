@@ -6,8 +6,8 @@ rows, and `prepare` turns the accepted ones into workflow inputs.
 
 ```{note}
 In development (milestone M2). This version builds the table from the survey records and
-merges it with an existing `samples.tsv`. Taxonomy resolution, scoring, tiers and isolate
-genomes come next; their columns are already in the table, empty.
+merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI. Scoring,
+tiers and isolate genomes come next; their columns are already in the table, empty.
 ```
 
 ## Usage
@@ -23,6 +23,7 @@ biome-finder search --biome biomes/<name>.yaml --survey survey/ --out samples.ts
 | `--survey` | Survey folder holding `biomes/<name>/records.tsv` (default `survey/`). Run [survey](survey.md) on the biome first. |
 | `--out` | The table (default `samples.tsv`). If it exists, the new search is merged into it. |
 | `--since` | Only records public on or after this date (`YYYY-MM-DD`), for catalogue updates. |
+| `--taxdump` | NCBI taxonomy release (`YYYY-MM-DD`): the monthly `new_taxdump_<YYYY-MM>-01.zip` of that month. Default: the latest. |
 
 ## Records
 
@@ -34,6 +35,40 @@ already has more processed data stay in the table; `prepare` marks them `not_sel
 A genome's biome is the biome of the samples it was assembled from, so its `sample_accession`
 holds its source samples (`derived from`, `;`-joined for co-assemblies) as primary IDs
 (SAMEA/SAMN/SAMD), the same IDs its sample's assemblies and runs carry.
+
+## Taxonomy
+
+Each row keeps the taxon as ENA shows it (`reported_tax_id`, `reported_tax_name`) and its lineage
+in one NCBI taxonomy release (`tax_lineage`, `domain`, `taxdump_date`), from the
+[taxdump archive](https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_archive/). The release is
+downloaded once (about 150 MB) into the cache (`~/.cache/biome-finder/files/`); only the rows of
+the table's tax IDs are read from it.
+
+- A merged tax ID (`merged.dmp`) is followed to the current one. ENA keeps the reported tax ID
+  and name current, so the resolved ones aren't stored: names differ only by NCBI renames of the
+  same taxon (e.g. `Binatia bacterium` → `Binatia bacterium (SeqCode)`).
+- A genome whose resolved lineage is outside the config's kingdom, or under an excluded taxon
+  (Viruses, Metazoa, Tracheophyta, Phaeophyceae, plus `exclude_taxa_extra`), is flagged
+  `out_of_scope_taxon`.
+- A tax ID that doesn't resolve is flagged `taxid_deleted` (in `delnodes.dmp`) or
+  `taxid_unknown` (not in the release, e.g. newer than it), and is left to the curator: ENA can
+  still use a tax ID NCBI deleted. In freshwater-water-prok, 13 MAGs have one (e.g. 3691919,
+  *uncultured Methylopumilus sp.*, deleted in NCBI 2026-11-01 and current in ENA).
+- Assemblies and runs carry their metagenome taxon (e.g. `freshwater metagenome`), so the
+  organism scope doesn't apply to them, and their `domain` is empty. Survey finds them by that
+  taxon (`tax_eq`), so a record without its own taxon in the survey takes the one it was
+  found by, with its tax ID from `survey.tsv`.
+
+`tax_lineage` holds the eight NCBI ranks (`rankedlineage.dmp`) with a prefix each, the taxon's
+own rank included, and an empty name where the lineage has no taxon at that rank:
+
+```text
+d__Bacteria;k__Pseudomonadati;p__Pseudomonadota;c__Betaproteobacteria;o__Neisseriales;f__Neisseriaceae;g__;s__uncultured Neisseriaceae bacterium
+d__;k__;p__;c__;o__;f__;g__;s__freshwater metagenome
+```
+
+The prefixes are `d` (domain; realm for viruses), `k` (kingdom), `p`, `c`, `o`, `f`, `g`, `s`.
+NCBI gives metagenomes the species rank only.
 
 ## Re-running
 
@@ -54,7 +89,10 @@ this version:
 | `sample_accession` | The record's sample; for genomes, their source samples |
 | `study_accession` | The record's ENA study (PRJ*) |
 | `reported_tax_id`, `reported_tax_name` | As shown in the ENA record |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
+| `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
+| `taxdump_date` | The release used (`YYYY-MM-01`) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `read_stats` | Runs: read count, layout, platform |
 | `first_public` | Date the record became public |
 | `curation_note`, `decision` | For the curator: `decision` is `keep` or `skip` and overrides the tier |

@@ -49,11 +49,14 @@ def survey(biome_paths: tuple[str, ...], extra: tuple[str, ...], out: str) -> No
 )
 @click.option("--out", type=click.Path(dir_okay=False), default="samples.tsv", show_default=True)
 @click.option("--since", default="", metavar="YYYY-MM-DD", help="Only records public on or after this date.")
-def search(biome_path: str, survey_dir: str, out: str, since: str) -> None:
+@click.option(
+    "--taxdump", default="", metavar="YYYY-MM-DD", help="NCBI taxonomy release of that month (default: the latest)."
+)
+def search(biome_path: str, survey_dir: str, out: str, since: str, taxdump: str) -> None:
     """Build samples.tsv for one biome from its survey records (merged into an existing one)."""
     try:
-        search_mod.run(biome_path, survey_dir, out, since)
-    except ValueError as e:  # survey not run for this biome
+        search_mod.run(biome_path, survey_dir, out, since, taxdump)
+    except ValueError as e:  # survey not run for this biome, or no such taxdump release
         raise click.ClickException(str(e)) from e
 
 

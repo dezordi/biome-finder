@@ -174,10 +174,12 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
 ## Taxonomy
 
 - Keep `reported_tax_id` / `reported_tax_name` exactly as shown in the record.
-- Resolve to `tax_id` / `tax_name` / `tax_lineage` with the NCBI taxdump archive release
-  chosen by `--taxdump YYYY-MM-DD` (`new_taxdump_<YYYY-MM>-01.zip`; the default is the
-  latest). Apply `merged.dmp`, and flag `delnodes.dmp` hits as `taxid_deleted`.
-- `domain`, the out-of-scope filter and the datascout `taxid` always use the resolved values.
+- Resolve `tax_lineage` and `domain` with the NCBI taxdump archive release chosen by
+  `--taxdump YYYY-MM-DD` (`new_taxdump_<YYYY-MM>-01.zip`; the default is the latest). Follow
+  `merged.dmp`, and flag `delnodes.dmp` hits as `taxid_deleted`. ENA keeps the reported tax ID
+  and name current, so no resolved tax ID or name is stored.
+- `domain` and the out-of-scope filter always use the resolved lineage; the datascout `taxid`
+  is `reported_tax_id`.
 
 ## Re-running and editing `samples.tsv`
 
