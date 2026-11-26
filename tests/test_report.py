@@ -1,6 +1,16 @@
 """Smoke test: the dashboard renders from a minimal survey folder."""
 
-from biome_finder import report, survey
+import csv
+
+from biome_finder import constants, report
+
+
+def write(path, columns, rows):
+    """A fixture TSV, written as survey writes its tables (missing columns empty)."""
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=columns, delimiter="\t", restval="")
+        w.writeheader()
+        w.writerows(rows)
 
 
 def test_report_writes_dashboard(tmp_path):
@@ -56,10 +66,10 @@ def test_report_writes_dashboard(tmp_path):
     for biome in ("soil-prok", "lake-euk"):
         d = tmp_path / "biomes" / biome
         d.mkdir(parents=True)
-        survey.write_tsv(d / "records.tsv", survey.RECORD_COLUMNS, recs)
-        survey.write_tsv(
+        write(d / "records.tsv", constants.RECORD_COLUMNS, recs)
+        write(
             d / "studies.tsv",
-            survey.STUDY_COLUMNS,
+            constants.STUDY_COLUMNS,
             [{"study_accession": "S2", "from_mgnify": "True", "first_public": "2021-02-01", "assemblies_to_bin": 1}],
         )
     counts = {
@@ -95,7 +105,7 @@ def test_report_writes_dashboard(tmp_path):
     ]:
         for taxon in ("soil metagenome", "TOTAL"):
             rows.append({**counts, **extra, "biome": biome, "metagenome_taxon": taxon})
-    survey.write_tsv(tmp_path / "survey.tsv", survey.SURVEY_COLUMNS, rows)
+    write(tmp_path / "survey.tsv", constants.SURVEY_COLUMNS, rows)
     report.write(tmp_path)
     html = (tmp_path / "report.html").read_text()
     assert "All catalogues" in html and "One catalogue" in html and "soil-v1-0" in html

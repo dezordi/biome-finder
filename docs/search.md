@@ -45,6 +45,35 @@ from ENA's virtual co-assembly sample ("mock sample for coassembly … of sample
 gets the samples that sample lists instead: in freshwater-water-prok, 41 virtual samples stand
 for 272 samples, behind about 4,100 MAGs.
 
+## Genomes beyond the survey
+
+The survey finds MAGs through ENA's typed MAG layer and the metagenome taxon. `search` also
+looks for single-organism genome assemblies (GCA) whose sample names the biome: the
+`keywords_include` words in the sample's environment fields (isolation source, the
+`environment_*` and MIxS env fields), in the config's kingdom minus the excluded taxa, leaving
+out the typed MAG, bin and SAG layers. The Portal's wildcards can't span a space, so a phrase
+("lake water") matches when each of its words is in the same field. Genomes whose own sample
+is a survey genome's are left out.
+
+Most of what this finds are NCBI-submitted MAGs, which ENA leaves untyped, and isolates. The
+data type comes from, in order:
+
+| Evidence | Data type |
+|---|---|
+| NCBI `excluded_from_refseq` (`assembly_summary_genbank.txt`) "derived from metagenome" / "derived from single cell" | `mag` / `sag` |
+| BioSample package `MIMAG.*` / `MISAG.*` | `mag` / `sag` |
+| ENA `environmental_sample=true` | `mag` |
+| a strain or culture collection | `isolate` |
+| none of these | `unknown`, tier C |
+
+A MAG takes its source samples (`derived from`), as the survey's do; an isolate is its own
+sample, and `culture` or `enrichment` don't apply to it. NCBI's assembly summary (about 2 GB)
+is downloaded once a day into the cache. Flags for curation (tier C): `type_strain` (NCBI type
+material, or "type strain" in the strain: its sample may record where the strain was first
+isolated), `surveillance_isolate` (One Health Enteric or Pathogen BioSample packages, NCBI
+Pathogen Detection assemblies: faecal or food-borne pathogens sampled from water). SAGs are
+flagged `single_cell`, tier D.
+
 ## Taxonomy
 
 Each row keeps the taxon as ENA shows it (`reported_tax_id`, `reported_tax_name`) and its lineage
@@ -105,6 +134,7 @@ matches if any of its source samples does.
 | `virome` | the viral fraction: virome, virion, virus-like particles (VLP), viral fraction or metagenome. Also matched in the study's title and description, since a virome's sample often has only a default title (e.g. the Yangtze River virome, PRJNA672207); a study mixing viromes and cellular metagenomes would lose the latter too | "viral genome information" |
 | `single_cell` | JGI's "Sorted cell/s from …" samples: single-cell (SAG) data, excluded by default | |
 | `culture` | a culture ("non-axenic culture", "cell culture"): **tier C**, like an enrichment, which also stands for it | "culture-independent" |
+| `manipulated` | a microcosm or mesocosm: **tier C**, an experimental incubation that is fine for its untreated arm, which only the paper tells. Also matched in the study's title and description (e.g. PRJEB56877, whose samples say only "Freshwater pond metagenome") | |
 
 Runs get two more flags from their ENA library and their sample, both tier D: `amplicon_only`
 when the library strategy is AMPLICON or its selection is PCR (amplicon data that the survey's
@@ -204,11 +234,10 @@ below) holds 150 rows drawn from the freshwater
 the tool's predictions apart in `…_benchmark150_tool.tsv`, so curators work blind. They were
 curated with the curate-sample skill (`curated_freshwater-water-prok.tsv`) and, 40 of them, by
 hand (`curated_freshwater-water-prok-filipe.tsv`). On 2026-11-26, against the skill's 150:
-tier A precision 47/47, tier A+B 64/67, tier D 64/64 skips, tier C 19/150 (13%), no kept record
-in tier D, and data type 150/150 (SAGs as `single_cell`). The three A/B rows a curator skipped
-lack the evidence in their own metadata: a sample from a mesocosm study that doesn't say so, a
-salmon aquaculture environment with no sample description, and a co-culture whose sample names
-only the cyanobacterium and the inoculum. The 40 curated by hand agree with the skill's decisions on all 40 (after review), with
+tier A precision 46/46, tier A+B 64/65, tier D 63/63 skips, tier C 22/150 (15%), no kept record
+in tier D, and data type 150/150 (SAGs as `single_cell`). The one A/B row a curator skipped is a
+salmon aquaculture environment with no sample description. The 150 rows were drawn before
+`search` found genomes beyond the survey, so isolates aren't in the benchmark yet. The 40 curated by hand agree with the skill's decisions on all 40 (after review), with
 tier A 12/12 and tier D 20/20.
 
 ## Re-running
@@ -224,8 +253,8 @@ this version:
 
 | Column | Content |
 |---|---|
-| `record_accession` | MAG (ENA WGS set), ERZ assembly or bin, or run accession |
-| `data_type` | `mag`, `bin`, `contigs` or `reads`, from the survey search that found the record |
+| `record_accession` | MAG (ENA WGS set), ERZ assembly or bin, run, or GCA genome assembly |
+| `data_type` | `mag`, `bin`, `contigs` or `reads` from the survey search that found the record; `mag`, `isolate`, `sag` or `unknown` for the genomes `search` finds itself |
 | `data_type_evidence` | What decided it: `ena.assembly_type=…` for genomes and assemblies (an untyped assembly found by its sample also shows its metagenome organism), the library for runs |
 | `source_db` | `ENA` |
 | `sample_accession` | The record's sample; for genomes, their source samples |
@@ -234,7 +263,7 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome` (tier D: the sample's own evidence points only to another biome), `amplicon_only` and `sample_low_reads` (runs, tier D), `single_cell` (tier D), `culture` (tier C), `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome` (tier D: the sample's own evidence points only to another biome), `amplicon_only` and `sample_low_reads` (runs, tier D), `single_cell` (tier D), `culture`, `manipulated`, `type_strain` and `surveillance_isolate` (tier C), `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
 | `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>`, and the samples' GOLD ecosystems, `gold:<Gb or Go ID>:<path>`, `; `-joined |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |

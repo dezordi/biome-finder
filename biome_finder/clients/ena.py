@@ -3,7 +3,6 @@
 import csv
 import io
 import json
-import re
 import urllib.parse
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
@@ -12,6 +11,7 @@ from typing import Any
 from ..log import warn
 from ..models import (
     M,
+    EnaGenome,
     EnaLinkedAnalysis,
     EnaLinkedWgs,
     EnaRunLibrary,
@@ -24,12 +24,8 @@ from ..models import (
     columns,
     from_row,
 )
-from ..constants import SAMPLE_ID
+from ..constants import DERIVED_FROM, ENA_BROWSER, ENA_PORTAL, ENA_TAXONOMY, SAMPLE_ID
 from .http import batches, first_status, get
-
-PORTAL = "https://www.ebi.ac.uk/ena/portal/api"
-TAXONOMY = "https://www.ebi.ac.uk/ena/taxonomy/rest"
-BROWSER = "https://www.ebi.ac.uk/ena/browser/api"
 
 csv.field_size_limit(10**9)
 
@@ -41,7 +37,7 @@ def count(request: EnaSearch) -> int:
     """Rows a query would return. A long query (e.g. hundreds of sample IDs) goes by POST, since it
     would not fit in a URL; short ones stay GET, keeping their cache keys."""
     form: dict[str, str] = {"result": request.result, "query": request.query}
-    res = get(f"{PORTAL}/count", data=dict(form)) if len(request.query) > 1500 else get(f"{PORTAL}/count", form)
+    res = get(f"{ENA_PORTAL}/count", data=dict(form)) if len(request.query) > 1500 else get(f"{ENA_PORTAL}/count", form)
     text = res.data
     return int(text.split()[-1]) if text else 0
 
@@ -69,7 +65,7 @@ def search(request: EnaSearch, model: type[M]) -> Response[list[M]]:
     total = None if request.accessions else count(request)
     if total == 0:
         return Response(200, [])
-    res = get(f"{PORTAL}/search", data=form, check=lambda t: parse_tsv(t, fields) is not None)
+    res = get(f"{ENA_PORTAL}/search", data=form, check=lambda t: parse_tsv(t, fields) is not None)
     rows = (parse_tsv(res.data, fields) if res.data else None) or []
     if total is not None and len(rows) != total:
         warn(f"ENA {request.result}: {len(rows)} rows, count endpoint says {total} ({request.query})")
@@ -87,6 +83,13 @@ def samples(accessions: Iterable[str], model: type[M]) -> Response[list[M]]:
         for b in batches(accessions - primary, 100)
     ]
     return Response(first_status(responses), [s for r in responses for s in r.data])
+
+
+def genomes(query: str) -> Response[list[EnaGenome]]:
+    """Genome assemblies (`assembly`) matching a Portal query, one per accession (the result has
+    a row per assembly version)."""
+    res = search(EnaSearch("assembly", query), EnaGenome)
+    return Response(res.status, list({g.accession: g for g in reversed(res.data)}.values()))
 
 
 def run_libraries(accessions: Iterable[str]) -> Response[list[EnaRunLibrary]]:
@@ -138,14 +141,12 @@ def emg_studies() -> Response[set[str]]:
 
 # --- Browser API: sample XML ---
 
-DERIVED_FROM = {"derived from", "derived_from", "sample derived from"}
-
 
 def derived_from(sample_accessions: Iterable[str]) -> Response[dict[str, list[str]]]:
     """{sample: [source sample IDs]} from each sample's `derived from` attribute (ENA sample
     XML, 100 samples per request). Keys are the primary IDs (SAMEA/SAMN/SAMD)."""
     out: dict[str, list[str]] = {}
-    responses = [get(f"{BROWSER}/xml/{','.join(b)}") for b in batches(sample_accessions, 100)]
+    responses = [get(f"{ENA_BROWSER}/xml/{','.join(b)}") for b in batches(sample_accessions, 100)]
     for res in responses:
         for sample in ET.fromstring(res.data).iter("SAMPLE") if res.data else []:
             values = [
@@ -165,9 +166,9 @@ def _taxon(res: Response[str | None]) -> Response[EnaTaxon | None]:
 
 def taxon_by_name(scientific_name: str) -> Response[EnaTaxon | None]:
     """The taxon with this exact ENA scientific name, or None."""
-    return _taxon(get(f"{TAXONOMY}/scientific-name/{urllib.parse.quote(scientific_name)}"))
+    return _taxon(get(f"{ENA_TAXONOMY}/scientific-name/{urllib.parse.quote(scientific_name)}"))
 
 
 def taxon(tax_id: int | str) -> Response[EnaTaxon | None]:
     """The taxon with this ENA/NCBI tax ID, or None."""
-    return _taxon(get(f"{TAXONOMY}/tax-id/{tax_id}"))
+    return _taxon(get(f"{ENA_TAXONOMY}/tax-id/{tax_id}"))

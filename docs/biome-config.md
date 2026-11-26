@@ -208,9 +208,10 @@ and the project title and description.
   "rhizosphere"). Avoid words that also describe neighbours.
 - `keywords_exclude`: the boundary neighbours ("estuar", "brackish", "sediment" for marine
   water; "bulk soil", "endosphere" for rhizosphere) plus manipulations that are always out
-  ("mesocosm", "microcosm", "spiked", "mock", "synthetic", "control"). Leave out
-  "enrichment": `search` flags enrichment cultures for curation by itself, since one is fine if
-  no organisms were added while culturing.
+  ("spiked", "mock", "synthetic", "control"). Leave out "enrichment", "mesocosm" and
+  "microcosm": `search` flags enrichment cultures, cultures and micro/mesocosms for curation by
+  itself, since they are fine if no organisms were added and no treatment applied, which only
+  the paper tells.
   Prefixes work: "estuar" matches estuary and estuarine.
 
 Used by `search` only (actions 2 and 4).

@@ -4,12 +4,16 @@ Each client in `clients/` takes a query model (or a plain identifier, when the q
 single one) and returns `Response[T]`: the HTTP status plus the data models its callers use.
 A data model lists only the fields biome-finder uses; for ENA, those are also the fields
 requested from the Portal API.
+
+The last section holds biome-finder's own tables (a survey record, a samples.tsv row), so
+commands pass typed rows between their steps.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from types import NoneType
 from typing import Any, ClassVar, Generic, Protocol, TypeVar, get_args, get_type_hints
+from .constants import NCBI_RANKS
 
 
 class DataModel(Protocol):
@@ -47,15 +51,18 @@ def columns(model: type[DataModel]) -> list[str]:
 
 
 def from_row(model: type[M], row: Mapping[str, Any]) -> M:
-    """A data model from one source row (TSV or JSON). A missing column is empty; `int` and
-    `float` fields are converted, and an empty value becomes None when the field allows it."""
+    """A data model from one source row (TSV or JSON). A missing column is empty; `bool` ("True" /
+    "False"), `int` and `float` fields are converted, and an empty value becomes None when the
+    field allows it (False for a plain `bool`)."""
     hints = get_type_hints(model)
     values = {}
     for f in fields(model):
         value, hint = row.get(f.metadata.get("column", f.name)), hints[f.name]
         kinds = get_args(hint) or (hint,)
         if value in ("", None):
-            value = None if NoneType in kinds else ""
+            value = None if NoneType in kinds else False if bool in kinds else ""
+        elif bool in kinds:
+            value = value in (True, "True", "true")
         elif int in kinds:
             value = int(value)
         elif float in kinds:
@@ -73,7 +80,7 @@ class EnaSearch:
     `accessions` restricts it to these primary IDs (sent as `includeAccessions`); `fields`
     overrides the row model's fields, e.g. to fetch only the accessions."""
 
-    RESULTS: ClassVar[set[str]] = {"wgs_set", "analysis", "read_run", "sample", "study"}
+    RESULTS: ClassVar[set[str]] = {"wgs_set", "analysis", "read_run", "sample", "study", "assembly"}
 
     result: str
     query: str = ""
@@ -197,6 +204,28 @@ class EnaRun:
 
 
 @dataclass(frozen=True)
+class EnaGenome:
+    """A single-organism genome assembly (`assembly`: GCA), with the sample fields that tell its
+    data type. NCBI-submitted MAGs come untyped here, so `assembly_type` alone can't tell a MAG
+    from an isolate: the BioSample package and `environmental_sample` do (PROPOSAL.md §3.4)."""
+
+    accession: str  # GCA_…, versionless
+    assembly_type: str  # mostly empty; "clone or isolate", …
+    assembly_level: str  # contig, scaffold, chromosome, complete genome
+    environmental_sample: str  # "true" for metagenome-derived
+    ncbi_reporting_standard: str  # BioSample package: MIMAG.*, MISAG.*, MIGS.ba.*, Microbe.1.0, …
+    strain: str
+    culture_collection: str
+    isolate: str  # free text, often a MAG or SAG name (e.g. "UBA10892")
+    sample_accession: str
+    study_accession: str
+    tax_id: str
+    scientific_name: str
+    first_created: str
+    description: str
+
+
+@dataclass(frozen=True)
 class EnaRunLibrary:
     """How a run's library was made (`read_run`): amplicon data hides under strategy OTHER with
     a PCR selection, which the survey's WGS/OTHER query lets through."""
@@ -304,9 +333,6 @@ class MgnifyCatalogueGenome:
 # --- NCBI Taxonomy: monthly new_taxdump archive (ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_archive) ---
 
 
-NCBI_RANKS = ("domain", "kingdom", "phylum", "class", "order", "family", "genus", "species")
-
-
 @dataclass(frozen=True)
 class NcbiTaxon:
     """A taxon of one taxdump release (`nodes.dmp`, `rankedlineage.dmp`, `taxidlineage.dmp`).
@@ -331,6 +357,17 @@ class NcbiTaxon:
     def ranks(self) -> dict[str, str | None]:
         """NCBI_RANKS → name or None, root first."""
         return {r: getattr(self, "class_" if r == "class" else r) for r in NCBI_RANKS}
+
+
+@dataclass(frozen=True)
+class NcbiAssembly:
+    """A GenBank assembly's row in NCBI's assembly_summary_genbank.txt, with the fields that
+    tell its data type and type material (PROPOSAL.md §3.4)."""
+
+    accession: str  # GCA_…, versionless
+    biosample: str
+    excluded_from_refseq: str  # e.g. "derived from metagenome", "derived from single cell"
+    relation_to_type_material: str  # e.g. "assembly from type material"
 
 
 @dataclass(frozen=True)
@@ -366,3 +403,198 @@ class GoldBiosample:
     biosample_accession: str  # SAMN/SAMEA/SAMD
     gold_id: str  # Gb… or Go…
     ecosystem_path: str  # "Environmental > Aquatic > Freshwater > Lake > Unclassified"
+
+
+# --- biome-finder's own tables ---
+
+
+class Table:
+    """A row of one of biome-finder's own TSV tables: `to_tsv` writes it as text, column by
+    column (a field with `column` metadata None isn't written)."""
+
+    def to_tsv(self) -> dict[str, str]:
+        out = {}
+        for f in fields(self):  # type: ignore[arg-type]
+            if f.metadata.get("column", f.name) is None:
+                continue
+            value = getattr(self, f.name)
+            if isinstance(value, list):
+                value = ";".join(value)
+            out[f.name] = "" if value is None else str(value)
+        return out
+
+
+@dataclass
+class SurveyRecord(Table):
+    """One survey record, a row of `biomes/<name>/records.tsv` (RECORD_COLUMNS): an ENA record
+    plus the survey's own columns, filled step by step."""
+
+    data_type: str  # mag, bin, contigs, reads
+    accession: str
+    study_accession: str = ""
+    from_mgnify: bool = False  # in one of MGnify's own ENA studies
+    sample_accession: str = ""  # the record's own sample (a MAG's sample, not its source)
+    metagenome_taxon: str = ""
+    first_public: str = ""
+    is_new: bool | None = None  # public on or after the catalogue cutoff; None without a catalogue
+    read_count: int | None = None
+    base_count: int | None = None
+    library_layout: str = ""
+    instrument_platform: str = ""
+    center_name: str = ""
+    assembly_software: str = ""
+    kingdom_evidence: str = ""  # genome, study_text, none, other_kingdom (assemblies and runs)
+    kingdom_match: bool | None = None  # None for genomes
+    kingdom_terms: str = ""  # `;`-joined
+    in_catalogue: bool | None = None  # genomes only
+    route: str = ""  # bin, assemble, covered (assemblies and runs)
+    covered_by: str = ""  # `;`-joined studies
+    scope_taxon: str = ""
+    tax_id: str = ""
+    scientific_name: str = ""
+    source_samples: str = ""  # `;`-joined
+    host: str = ""
+    country: str = ""
+    lat: str = ""
+    lon: str = ""
+    collection_date: str = ""
+    assembly_type: str = ""
+
+
+@dataclass
+class SurveyCounts:
+    """The counts of one set of survey records (`survey.summarize`)."""
+
+    mags: int
+    mags_new: int | None
+    mags_mgnify: int
+    mags_to_add: int
+    mag_studies: int
+    mgnify_bins: int
+    mgnify_bins_new: int | None
+    mgnify_bins_to_add: int
+    assemblies: int
+    assemblies_mgnify: int
+    assemblies_kingdom: int
+    assemblies_to_bin: int
+    samples_to_bin: int
+    assembly_studies: int
+    runs: int
+    runs_1m: int
+    runs_1m_kingdom: int
+    runs_1m_new: int | None
+    runs_1m_kingdom_new: int | None
+    runs_to_assemble: int
+    samples_to_assemble: int
+    runs_1m_paired: int
+    runs_1m_long: int
+    gbases_1m: float
+    gbases_1m_kingdom: float
+    gbases_to_assemble: float
+    read_studies_1m: int
+
+
+@dataclass
+class SurveyRow(Table):
+    """One row of survey.tsv (SURVEY_COLUMNS): a metagenome taxon of a biome, or its TOTAL."""
+
+    biome: str
+    kingdom: str
+    metagenome_taxon: str
+    tax_id: str
+    catalogue: str
+    catalogue_updated: str
+    catalogue_species: int | None
+    catalogue_genomes: int | None
+    catalogue_mags: int | None
+    counts: SurveyCounts = field(metadata={"column": None})
+
+    def to_tsv(self) -> dict[str, str]:
+        counts = {k: "" if v is None else str(v) for k, v in self.counts.__dict__.items()}
+        return {**super().to_tsv(), **counts}
+
+
+@dataclass
+class StudyRow(Table):
+    """One row of a biome's studies.tsv (STUDY_COLUMNS): a study's records on a route."""
+
+    study_accession: str
+    from_mgnify: bool
+    metagenome_taxa: str  # `;`-joined
+    first_public: str
+    mags_to_add: int
+    assemblies_to_bin: int
+    samples_to_bin: int
+    assemblies_with_mags: int
+    mags_studies: str  # `;`-joined
+    runs_to_assemble: int
+    samples_to_assemble: int
+
+
+@dataclass
+class SampleRow(Table):
+    """One samples.tsv row (PROPOSAL.md §3.6). Its fields are the table's columns in order
+    (SAMPLES_COLUMNS), plus `read_count`, which search uses and doesn't write. `sample_accession`,
+    `flags` and `evidence` are lists, `;`-joined in the table (`; ` for evidence)."""
+
+    record_accession: str
+    data_type: str
+    data_type_evidence: str = ""
+    assembly_level: str = ""
+    source_db: str = ""
+    sample_accession: list[str] = field(default_factory=list)
+    related_accessions: str = ""
+    study_accession: str = ""
+    secondary_study_accession: str = ""
+    bioproject: str = ""
+    reported_tax_id: str = ""
+    reported_tax_name: str = ""
+    tax_lineage: str = ""
+    domain: str = ""
+    taxdump_date: str = ""
+    publication: str = ""
+    paper_access: str = ""
+    paper_pdf: str = ""
+    reported_biome: str = ""
+    third_party_biome: str = ""
+    curated_biome: str = ""
+    score: int | None = None
+    tier: str = ""
+    needs_curation: bool | None = None
+    evidence: list[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
+    read_stats: str = ""
+    first_public: str = ""
+    curation_note: str = ""
+    decision: str = ""
+    destination: str = ""
+    local_path: str = ""
+    prepare_status: str = ""
+    read_count: int = field(default=0, metadata={"column": None})  # not written
+
+    def flag(self, *names: str) -> None:
+        """Add flags, once each, keeping their order."""
+        self.flags += [n for n in names if n not in self.flags]
+
+    def to_tsv(self) -> dict[str, str]:
+        """The row as samples.tsv text, column by column."""
+        out = {}
+        for f in fields(self):
+            if f.metadata.get("column", f.name) is None:
+                continue
+            value = getattr(self, f.name)
+            if isinstance(value, list):
+                value = ("; " if f.name == "evidence" else ";").join(value)
+            out[f.name] = "" if value is None else str(value)
+        return out
+
+    @classmethod
+    def from_tsv(cls, row: Mapping[str, str]) -> "SampleRow":
+        """A row read back from samples.tsv (e.g. to merge a curator's decisions)."""
+        columns = {f.name for f in fields(cls) if f.metadata.get("column", f.name) is not None}
+        values: dict[str, Any] = {k: v for k, v in row.items() if k in columns}
+        for name, sep in (("sample_accession", ";"), ("flags", ";"), ("evidence", "; ")):
+            values[name] = [x for x in values.get(name, "").split(sep) if x]
+        values["score"] = int(values["score"]) if values.get("score") else None
+        values["needs_curation"] = {"True": True, "False": False}.get(values.get("needs_curation", ""))
+        return cls(**values)

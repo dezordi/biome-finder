@@ -8,16 +8,14 @@ import json
 from ..log import warn
 from ..models import MgnifyCatalogue, MgnifyCatalogueGenome, MgnifyStudy, Response, from_row
 from .http import first_status, get
-
-API_V2 = "https://www.ebi.ac.uk/metagenomics/api/v2"
-
+from ..constants import MGNIFY_API_V2
 
 # --- API v2: genome catalogues ---
 
 
 def catalogue(catalogue_id: str) -> Response[MgnifyCatalogue | None]:
     """An MGnify genome catalogue, or None if it doesn't exist."""
-    res = get(f"{API_V2}/genomes/catalogues/{catalogue_id}")
+    res = get(f"{MGNIFY_API_V2}/genomes/catalogues/{catalogue_id}")
     return Response(res.status, from_row(MgnifyCatalogue, json.loads(res.data)) if res.data else None)
 
 
@@ -28,7 +26,7 @@ def studies() -> Response[list[MgnifyStudy]]:
     """Every study MGnify has analysed, with its curated biome (about 5,800, 100 per page)."""
     found, responses, page = [], [], 1
     while True:
-        res = get(f"{API_V2}/studies/", {"page": str(page), "page_size": "100"})
+        res = get(f"{MGNIFY_API_V2}/studies/", {"page": str(page), "page_size": "100"})
         responses.append(res)
         data = json.loads(res.data) if res.data else {}
         for s in data.get("items", []):

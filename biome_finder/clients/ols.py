@@ -6,15 +6,14 @@ from typing import Any
 
 from ..models import OlsTerm, Response
 from .http import first_status, get
-
-OLS = "https://www.ebi.ac.uk/ols4/api/ontologies"
+from ..constants import OLS_API
 
 
 def term_url(obo_id: str) -> str:
-    """A term's OLS URL; OLS wants its IRI URL-encoded twice."""
+    """A term's OLS_API URL; OLS_API wants its IRI URL-encoded twice."""
     iri = f"http://purl.obolibrary.org/obo/{obo_id.replace(':', '_')}"
     ontology = obo_id.split(":")[0].lower()
-    return f"{OLS}/{ontology}/terms/{urllib.parse.quote(urllib.parse.quote(iri, safe=''), safe='')}"
+    return f"{OLS_API}/{ontology}/terms/{urllib.parse.quote(urllib.parse.quote(iri, safe=''), safe='')}"
 
 
 def parse(t: dict[str, Any]) -> OlsTerm:
@@ -23,7 +22,7 @@ def parse(t: dict[str, Any]) -> OlsTerm:
 
 def with_descendants(obo_id: str) -> Response[list[OlsTerm]]:
     """A term and everything under it (`hierarchicalDescendants`: subclasses and parts, the way
-    ENVO nests e.g. 'freshwater lake biome' under 'freshwater lake'). Empty if OLS doesn't know
+    ENVO nests e.g. 'freshwater lake biome' under 'freshwater lake'). Empty if OLS_API doesn't know
     the term."""
     url = term_url(obo_id)
     res = get(url)

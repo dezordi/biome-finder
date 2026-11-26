@@ -6,40 +6,24 @@ from dataclasses import dataclass
 from typing import Any
 
 from .models import EnaSampleMetadata, OlsTerm
-
-# Action 0, hard filters: a sample whose own text names one of these is not a natural sample of
-# any biome. Patterns were checked against freshwater-water-prok (2026-11): bare "control" there
-# is an experiment's untreated arm (a real sample, left to the biome evidence), and "mock" is
-# mostly ENA's "mock sample for coassembly", the virtual sample of a co-assembly. An enrichment
-# culture is fine if no organisms were added while culturing, which only a curator can tell, so
-# `enrichment` sends the row to curation (CURATION_FLAGS) rather than excluding it.
-HARD_FILTERS = {
-    "control": re.compile(
-        r"\b(?:negative|blank|extraction|kit|reagent|no[- ]template)[ ._-]?controls?\b|\bblank|\bntc\b", re.I
-    ),
-    "mock": re.compile(r"\bmock\b(?! sample for co-?assembly)", re.I),  # see CO_ASSEMBLY_SAMPLE
-    "synthetic": re.compile(r"\bsynthetic\b", re.I),
-    "enrichment": re.compile(r"\benrichments?\b|\benriched (?:microbiome|culture|communit)", re.I),
-    "spiked": re.compile(r"\bspiked?\b|\bspike-?ins?\b", re.I),
-    "virome": re.compile(  # the viral fraction (virions, VLPs): no cellular genomes to recover
-        r"\bviromes?\b|\bviri?ons?\b|\bvirus-like particles?\b|\bVLPs?\b"
-        r"|\bviral (?:fraction|particles?|concentrates?|metagenomes?)\b",
-        re.I,
-    ),
-    "single_cell": re.compile(r"\bsorted cells?\b|\bsorted cell/s\b", re.I),  # JGI's "Sorted cell/s from …": SAG data
-    # a culture, not the community itself; "culture-independent" says the opposite (NARMS)
-    "culture": re.compile(r"\bcultur(?:e|es|ed|ing)\b(?![- ]independent)|\bnon-?axenic\b", re.I),
-}
-CO_ASSEMBLY_SAMPLE = re.compile(r"\bmock sample for co-?assembly\b", re.I)  # ENA's text for a virtual sample
-CURATION_FLAGS = {"enrichment", "culture"}  # any of these sends a row to tier C, whatever its score
-EXCLUDING_FLAGS = {  # any of these sends a row to tier D
-    *HARD_FILTERS,
-    "out_of_scope_taxon",
-    "excluded_envo",
-    "off_biome",
-    "amplicon_only",  # a run's library is amplicon (strategy AMPLICON, or selection PCR)
-    "sample_low_reads",  # none of the sample's runs reaches 200k reads, so its reads can't be routed
-} - CURATION_FLAGS
+from .constants import (
+    CONFLICT,
+    CO_ASSEMBLY_SAMPLE,
+    ENVO_ID,
+    ENV_FIELDS,
+    HARD_FILTERS,
+    SIBLINGS,
+    TIER_A,
+    TIER_B,
+    UNINFORMATIVE_LINEAGES,
+    W_ENVO,
+    W_METAGENOME,
+    W_SAMPLE_EXCLUDE,
+    W_SAMPLE_KEYWORD,
+    W_STUDY,
+    W_STUDY_EXCLUDE,
+    W_THIRD_PARTY,
+)
 
 
 def sample_text(s: EnaSampleMetadata) -> str:
@@ -62,26 +46,6 @@ def hard_flags(s: EnaSampleMetadata) -> list[str]:
     text = sample_text(s)
     found = [flag for flag, pattern in HARD_FILTERS.items() if pattern.search(text)]
     return [f for f in found if f != "culture" or "enrichment" not in found]
-
-
-# Actions 1-5: biome evidence. Base weights are PROPOSAL.md §3.7's, still to calibrate.
-W_THIRD_PARTY = 0.9  # action 1, a curated biome lineage (MGnify study)
-UNINFORMATIVE_LINEAGES = {"root:Mixed"}  # MGnify's node for studies spanning several biomes
-W_ENVO = 0.8  # action 2, an env_* term of the config (ENVO, subclasses included)
-W_SAMPLE_KEYWORD = 0.4  # action 2, a config keyword in the sample's text: generic
-W_SAMPLE_EXCLUDE = 0.6  # action 2, an exclude keyword in the sample's text: a conflict
-W_STUDY = 0.6  # action 4, a config keyword in the study's title or description
-W_STUDY_EXCLUDE = 0.3  # study texts often name other habitats in passing, so below the conflict threshold
-W_METAGENOME = 0.3  # action 5, the sample's organism is one of the config's metagenome taxa: often a default
-SIBLINGS = 0.1  # action 3, score modifier from the other samples of the same studies
-CONFLICT = 0.6  # an opposing item this heavy sets needs_curation
-TIER_A, TIER_B = 80, 60
-ENV_FIELDS = {
-    "env_broad_scale": "broad_scale_environmental_context",
-    "env_local_scale": "local_environmental_context",
-    "env_medium": "environmental_medium",
-}
-ENVO_ID = re.compile(r"ENVO[:_ ]?(\d{7,8})", re.I)
 
 
 @dataclass(frozen=True)
@@ -272,8 +236,12 @@ def off_biome(sample_items: list[Evidence]) -> bool:
     weight: the sample belongs to another biome, whatever its study says, since a study can mix
     biomes. A generic keyword or a default metagenome name doesn't rescue it (e.g. GOLD
     `… > Lake > Sediment` against "freshwater" in the isolation source); a strong item both
-    ways (an ENVO term against GOLD) is a conflict for a curator."""
-    out = max((e.weight for e in sample_items if e.claim in ("out", "excluded_envo")), default=0.0)
+    ways (an ENVO term against GOLD) is a conflict for a curator.
+    A keyword in free text never excludes on its own (it can be incidental, or a manipulation
+    such as a microcosm or a culture, which a curator checks in the paper): it stays a conflict,
+    tier C (`off_biome_keyword`)."""
+    against = [e for e in sample_items if e.claim in ("out", "excluded_envo") and e.source != "text"]
+    out = max((e.weight for e in against), default=0.0)
     in_ = max((e.weight for e in sample_items if e.claim == "in"), default=0.0)
     return out >= CONFLICT > in_
 

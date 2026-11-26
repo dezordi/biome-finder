@@ -1,14 +1,44 @@
-"""NCBI: the monthly taxdump archive (later E-utilities and the genomes FTP)."""
+"""NCBI: the monthly taxdump archive and the GenBank assembly summary (later E-utilities)."""
 
+import datetime
 import io
 import re
 import zipfile
 from collections.abc import Iterable, Iterator
 
-from ..models import NCBI_RANKS, NcbiTaxdump, NcbiTaxon, Response
+from ..models import NCBI_RANKS, NcbiAssembly, NcbiTaxdump, NcbiTaxon, Response
 from .http import download, get
+from ..constants import CACHE_DIR, ASSEMBLY_SUMMARY, TAXDUMP_ARCHIVE
 
-TAXDUMP_ARCHIVE = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_archive"
+
+def assembly_summary(accessions: Iterable[str]) -> Response[dict[str, NcbiAssembly]]:
+    """The rows of these GenBank assemblies (GCA, versionless) in NCBI's assembly summary
+    (PROPOSAL.md B.4). The file (about 2 GB) changes daily, so one copy per day is kept in the
+    cache and older ones are removed; only the requested rows are read from it."""
+    name = f"assembly_summary_genbank-{datetime.date.today()}.txt"
+    for old in (CACHE_DIR / "files").glob("assembly_summary_genbank-*.txt"):
+        if old.name != name:
+            old.unlink()
+    res = download(ASSEMBLY_SUMMARY, name=name)
+    if not res.data:
+        return Response(res.status, {})
+    wanted, found = set(accessions), {}
+    with open(res.data, encoding="utf-8") as f:
+        header: list[str] = []
+        for line in f:
+            if line.startswith("#"):
+                header = line.lstrip("#").rstrip("\n").split("\t")
+                continue
+            acc = line.split("\t", 1)[0].split(".")[0]
+            if acc in wanted:
+                row = dict(zip(header, line.rstrip("\n").split("\t")))
+                found[acc] = NcbiAssembly(
+                    acc,
+                    row.get("biosample", ""),
+                    row.get("excluded_from_refseq", "na"),
+                    row.get("relation_to_type_material", "na"),
+                )
+    return Response(200, found)
 
 
 def latest_taxdump() -> Response[str]:

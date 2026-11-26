@@ -114,7 +114,7 @@ gold_ecosystems_exclude: []          # GOLD paths (and everything under them) re
 metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
 keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor",
-                   "mesocosm", "microcosm", "spiked", "mock", "synthetic", "control"]
+                   "spiked", "mock", "synthetic", "control"]
 host: none                           # environmental: any host field is a conflict
 # host: "Bos taurus"
 host_tax_id:                         # NCBI tax ID of the host (e.g. 9913)
@@ -149,7 +149,9 @@ PDFs → search again.
 
 **Input.** `search` starts from the biome's survey records
 (`survey/biomes/<name>/records.tsv`: MAGs, MGnify bins, assemblies and runs with evidence for
-the config's kingdom) and adds isolate genomes, which `survey` doesn't search.
+the config's kingdom) and adds the single-organism genomes (GCA) whose sample names the biome:
+isolates, and NCBI-submitted MAGs that ENA leaves untyped, which `survey` doesn't search. Their
+data type comes from NCBI's `excluded_from_refseq`, the BioSample package and the strain (§3.4).
 
 ### 3.1 Data sources (programmatic)
 
@@ -280,7 +282,7 @@ no resolved tax ID or name is stored:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
 | `needs_curation` | bool: tier C (where any conflict and `data_type = unknown` land); tier D rows are excluded, not curated |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `culture`, `spiked`, `virome`, `single_cell`, `amplicon_only`, `sample_low_reads`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `culture`, `manipulated`, `type_strain`, `surveillance_isolate`, `spiked`, `virome`, `single_cell`, `amplicon_only`, `sample_low_reads`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |
@@ -313,7 +315,7 @@ soon as the evidence is conclusive:
 
 | # | Action | Automated by | Base weight (to calibrate) |
 |---|---|---|---|
-| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell: flagged `enrichment` (or `culture`), tier C. Amplicon libraries (strategy AMPLICON, or selection PCR), samples with no run of 200k reads, flow-sorted single cells and viromes (sample or study text) go to tier D | rules | gate |
+| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell: flagged `enrichment` (or `culture`), tier C; so is a microcosm or mesocosm (`manipulated`), fine for its untreated arm. Amplicon libraries (strategy AMPLICON, or selection PCR), samples with no run of 200k reads, flow-sorted single cells and viromes (sample or study text) go to tier D | rules | gate |
 | 1 | Third-party curated biome (MGnify study lineage, GOLD, Metalog) | lookup | 0.9 |
 | 2 | Structured sample metadata (ENVO `env_*`, `env_biome`, `isolation_source`, host, body site). ENA `env_tax:*`/`env_geo:*` tags are derived from the organism's taxonomy, not the sample, so they don't count (a sample can carry both `env_tax:marine` and `env_tax:freshwater`) | rules + term map | 0.8 when specific, 0.4 when generic, ~0 for `env_tax`/`env_geo` |
 | 3 | Consistency with sibling samples in the same project | rules | ± 0.1 modifier |

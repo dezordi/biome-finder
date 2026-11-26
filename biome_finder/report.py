@@ -21,104 +21,24 @@ import plotly.graph_objects as go
 from bokeh.resources import INLINE
 from plotly.subplots import make_subplots
 
-from .constants import LONG_READ_PLATFORMS, MIN_READS
-
-SUBMITTED, BY_MGNIFY = "MAGs (submitters)", "MAGs (MGnify)"
-ASSEMBLIES, RUNS = "Assemblies", "Runs ≥1M"
-KINDS = [SUBMITTED, BY_MGNIFY, ASSEMBLIES, RUNS]
-ROUTES = {
-    "MAGs to add": "→ genomes-catalogue-pipeline",
-    "Samples to bin": "→ genomes-generation",
-    "Samples to assemble": "→ miassembler, then genomes-generation",
-}
-TOP_STUDIES = 15
-PROJECTS = (
-    "Projects are ENA/INSDC BioProjects (PRJEB, PRJNA, PRJDB): one submission grouping the samples "
-    "and data of one research effort, usually one paper. Counted per route: the projects holding "
-    "the MAGs, the MAGs to add, and the assemblies or runs of the samples to bin or assemble. "
-    "Many projects mean more varied data, and "
-    "more to curate, since curation reads each project's paper and metadata. For MAGs (MGnify), "
-    "the projects are MGnify's own analysis projects, not the original ones."
+from .constants import (
+    ABOUT,
+    ACCENT,
+    ASSEMBLIES,
+    BY_MGNIFY,
+    COLORS,
+    FIGURE_LAYOUT,
+    KINDS,
+    LONG_READ_PLATFORMS,
+    MIN_READS,
+    PROJECTS,
+    REPORT_COLUMNS,
+    ROUTES,
+    RUNS,
+    SUBMITTED,
+    TABLE_CSS,
+    TOP_STUDIES,
 )
-ACCENT = "#0072B2"
-COLORS = {
-    SUBMITTED: "#0072B2",
-    BY_MGNIFY: "#56B4E9",
-    ASSEMBLIES: "#E69F00",
-    RUNS: "#009E73",
-    "MAGs": "#0072B2",
-    "MAGs to add": "#0072B2",
-    "Assemblies to bin": "#E69F00",
-    "Runs to assemble": "#009E73",
-    "Samples to bin": "#E69F00",
-    "Samples to assemble": "#009E73",
-    "short reads": "#009E73",
-    "long reads": "#CC79A7",
-    "in catalogue": "#BBBBBB",
-    "Bacteria": "#0072B2",
-    "Archaea": "#D55E00",
-    "Eukaryota": "#009E73",
-}
-# column: (title, tooltip)
-COLUMNS = {
-    "biome": (
-        "Catalogue",
-        "The biome config: one catalogue per biome and kingdom, as in MGnify. *: MGnify already has "
-        "this catalogue, so the survey counts an update",
-    ),
-    "metagenome_taxon": ("Metagenome taxon", "ENA metagenome taxon the records were found under"),
-    "tax_id": ("Tax ID", "NCBI tax ID of the metagenome taxon"),
-    "kingdom": ("Kingdom", "prokaryotes (Bacteria + Archaea) or eukaryotes"),
-    "mags": (
-        "MAGs",
-        "MAGs of the catalogue's kingdom in ENA: deposited by their authors, or produced by MGnify from "
-        "this biome's public data (ENA stores most of those as 'binned metagenome' records)",
-    ),
-    "to_add": (
-        "MAGs to add",
-        "MAGs (both kinds) not in the existing MGnify catalogue (all of them, for a new "
-        "catalogue): ready for genomes-catalogue-pipeline",
-    ),
-    "samples_bin": (
-        "Samples to bin",
-        "Samples with a metagenome assembly but no genome yet: input for genomes-generation. Only "
-        "assemblies with evidence for the kingdom count (a genome of that kingdom from the same sample, "
-        "or a project that names it). A sample can have several assemblies, e.g. by its submitter and "
-        "by MGnify; hover the routes chart for the assembly count",
-    ),
-    "samples_assemble": (
-        "Samples to assemble",
-        "Samples with only reads (no genome, no assembly): input for miassembler, then "
-        "genomes-generation. Only metagenomic WGS runs with at least 1 million reads and evidence for "
-        "the kingdom count. A sample can have several runs (lanes, re-sequencing); hover the routes "
-        "chart for the run count",
-    ),
-    "tbases": ("Runs Tb", "Terabases (10^12 bases, not bytes) in the runs to assemble"),
-}
-FIGURE_LAYOUT = {
-    "template": "plotly_white",
-    "height": 380,
-    "margin": {"l": 10, "r": 10, "t": 36, "b": 10},
-    "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0, "title": None},
-    "font": {"size": 12},
-}
-TABLE_CSS = """
-:host .tabulator-col-title { white-space: normal; word-break: normal; overflow-wrap: normal; text-overflow: clip; }
-:host .tabulator-col { font-size: 12px; }
-:host .tabulator-col-sorter, :host .tabulator-arrow { display: none; }  /* click the title to sort */
-"""
-ABOUT = """
-Every number is for the catalogue's kingdom: its genomes, and the assemblies and runs with
-evidence for that kingdom. Counts are proxies: a record belongs to a catalogue through the
-metagenome taxon its submitter chose (plus the host, for host-associated biomes), not through
-curation. Hover a column title for its definition.
-
-**Where new genomes would come from.** Each sample enters at its most processed public data:
-*MAGs to add* are ready for the catalogue; *samples to bin* have assemblies that need binning
-first; *samples to assemble* have only reads, which need assembly and binning. Many MAGs to add
-means the catalogue can grow now; many samples to bin or assemble means it would pay to generate
-new MAGs. Samples, not records, because a sample can have several assemblies or runs.
-"""
 
 
 def projects(out: Path) -> pd.DataFrame:
@@ -475,7 +395,7 @@ def catalogue_records(taxa: pd.DataFrame) -> go.Figure:
             var_name="kind",
             value_name="n",
         )
-        .replace({"kind": {k: COLUMNS[k][0] for k in COLUMNS}})
+        .replace({"kind": {k: REPORT_COLUMNS[k][0] for k in REPORT_COLUMNS}})
         .dropna(subset=["n"])
     )
     fig = figure(
@@ -489,7 +409,7 @@ def catalogue_records(taxa: pd.DataFrame) -> go.Figure:
         text_auto=",.0f",
         color_discrete_map=COLORS,
         labels={"metagenome_taxon": "", "n": ""},
-        category_orders={"kind": [COLUMNS[k][0] for k in kinds]},
+        category_orders={"kind": [REPORT_COLUMNS[k][0] for k in kinds]},
         layout={"height": 120 + 40 * taxa["metagenome_taxon"].nunique()},
     )
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
@@ -595,8 +515,8 @@ def table(frame: pd.DataFrame, columns: list[str], title: str) -> pn.Card:
             sizing_mode="stretch_width",
             theme="simple",
             frozen_columns=[cols[0]],
-            titles={c: COLUMNS[c][0] for c in cols},
-            header_tooltips={c: COLUMNS[c][1] for c in cols},
+            titles={c: REPORT_COLUMNS[c][0] for c in cols},
+            header_tooltips={c: REPORT_COLUMNS[c][1] for c in cols},
             widths={cols[0]: 210},
             configuration={"columnDefaults": {"headerWordWrap": True}},
             formatters={c: {"type": "money", "thousand": ",", "precision": 2 if c == "tbases" else 0} for c in numeric},

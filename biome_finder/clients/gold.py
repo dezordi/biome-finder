@@ -13,9 +13,7 @@ from typing import Any
 
 from ..log import info
 from ..models import GoldBiosample, Response
-from .http import CACHE_DIR
-
-LEVELS = ["ECOSYSTEM", "ECOSYSTEM CATEGORY", "ECOSYSTEM TYPE", "ECOSYSTEM SUBTYPE", "SPECIFIC ECOSYSTEM"]
+from ..constants import CACHE_DIR, GOLD_LEVELS
 
 
 def sheet(workbook: Any, name: str, columns: list[str]) -> Iterator[list[Any]]:
@@ -39,7 +37,7 @@ def read_export(path: Path) -> list[GoldBiosample]:
         wb = openpyxl.load_workbook(path, read_only=True)
         paths = {}
         for kind in ("BIOSAMPLE", "ORGANISM"):
-            for gid, *levels in sheet(wb, kind.title(), [f"{kind} GOLD ID", *(f"{kind} {lv}" for lv in LEVELS)]):
+            for gid, *levels in sheet(wb, kind.title(), [f"{kind} GOLD ID", *(f"{kind} {lv}" for lv in GOLD_LEVELS)]):
                 paths[gid] = " > ".join(str(v or "") for v in levels)
         found = {}
         for acc, bs, org in sheet(

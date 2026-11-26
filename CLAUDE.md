@@ -48,7 +48,7 @@ duplicate them here.
 
 ## Layout
 
-- `biome_finder/`: package. `cli.py` is the click entry point only; each command's logic lives in its own module (`survey.py`, `search.py`, `prepare.py`, …). Third-party services are reached only through `clients/`, one module per service (`ena.py`, `mgnify.py`, later `ncbi.py`, `europepmc.py`, …, sharing the cached HTTP layer in `clients/http.py`), with their query and response models in `models.py`. Constants shared by commands (ENA data-layer clauses, organism scope) live in `constants.py`. Scoring lives in `score.py` and the LLM in `llm.py`
+- `biome_finder/`: package. `cli.py` is the click entry point only; each command's logic lives in its own module (`survey.py`, `search.py`, `prepare.py`, …). Third-party services are reached only through `clients/`, one module per service (`ena.py`, `mgnify.py`, later `ncbi.py`, `europepmc.py`, …, sharing the cached HTTP layer in `clients/http.py`), with their query and response models in `models.py`. Every constant (ENA data-layer clauses, organism scope, table columns, thresholds, scoring weights and patterns, service endpoints, dashboard labels) lives in `constants.py`, never at the top of another module. Scoring lives in `score.py` and the LLM in `llm.py`
 - `biomes/*.yaml`: one config per biome (lineages, GOLD/ENVO terms, host/body site,
   include/exclude keywords, data types, notes). The file is the biome decision. Read it with
   `yaml.safe_load`.
@@ -97,7 +97,8 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
   out-of-scope taxa, amplicon-only data, and off-biome material (host conflict, barn faeces
   for a gut biome, and so on; a sample whose own evidence points only to another biome is
   `off_biome`, whatever its study says). An enrichment culture is not excluded automatically: it is
-  fine if no organisms were added while culturing, so it goes to curation.
+  fine if no organisms were added while culturing, so it goes to curation, and so do cultures
+  and micro/mesocosms (fine for an untreated arm); the paper decides.
 - Mixed-biome read studies: assemble **all** WGS runs of the study, controls and off-biome
   runs included (`assembly_only`), but bin only the accepted runs. Skip the study
   (`low_yield_study`) if accepted runs / all runs < `min_study_yield`, unless a curator set
@@ -245,6 +246,10 @@ the test.
   other errors raise) plus the data. Parse rows with `from_row`, and keep a source's value
   as `str` when its format varies (ENA `lat` can be `;`-joined). Command modules never call
   `clients/http.py` or build URLs themselves.
+- biome-finder's own tables are data models too (`models.py`: `SurveyRecord`, `SurveyRow`,
+  `StudyRow` for the survey folder, `SampleRow` for samples.tsv, all with `to_tsv()`):
+  functions take and return dataclasses, never dict rows. Dicts appear only where a TSV is
+  read or written.
 - Type hints on every function. Check with
   `uvx mypy --ignore-missing-imports --python-executable .venv/bin/python biome_finder`.
 - Format with black (`uvx black biome_finder tests docs`, line length 120 in `pyproject.toml`).

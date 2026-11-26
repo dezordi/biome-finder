@@ -1,7 +1,6 @@
 """HTTP GET/POST with a disk cache and retries, shared by every client."""
 
 import hashlib
-import os
 import shutil
 import time
 import urllib.error
@@ -12,10 +11,7 @@ from pathlib import Path
 
 from ..log import debug, info
 from ..models import Response
-
-CACHE_DIR = Path(os.environ.get("BIOME_FINDER_CACHE", "~/.cache/biome-finder")).expanduser()
-CACHE_MAX_AGE = 7 * 24 * 3600  # ponytail: fixed one-week TTL, add a --refresh flag if stale data bites
-USER_AGENT = "biome-finder/0.1"
+from ..constants import CACHE_DIR, CACHE_MAX_AGE, USER_AGENT
 
 
 def get(
@@ -64,10 +60,11 @@ def get(
     return Response(status, text)
 
 
-def download(url: str, retries: int = 5) -> Response[Path | None]:
-    """A file saved once under the cache's `files/` folder, by its name, for files that never
-    change once published (e.g. a monthly taxdump release). 404 gives `Response(404, None)`."""
-    path = CACHE_DIR / "files" / url.rsplit("/", 1)[-1]
+def download(url: str, retries: int = 5, name: str = "") -> Response[Path | None]:
+    """A file saved once under the cache's `files/` folder, by its name (or `name`), for files
+    that never change once published (e.g. a monthly taxdump release; a daily copy of a file that
+    changes can carry the date in `name`). 404 gives `Response(404, None)`."""
+    path = CACHE_DIR / "files" / (name or url.rsplit("/", 1)[-1])
     if path.exists():
         return Response(200, path)
     info(f"downloading {url} to {path} (once; later runs reuse it)")
