@@ -11,7 +11,7 @@ from collections import Counter, defaultdict
 
 from .clients import ena, mgnify, ncbi, ols
 from .log import counts, info
-from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS
+from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS, SAMPLE_ID
 from .models import EnaSampleMetadata, MgnifyStudy, NcbiTaxdump, NcbiTaxon
 from .score import Evidence, Terms
 from .survey import Config, write_tsv
@@ -106,6 +106,18 @@ def flags(r: dict[str, str]) -> list[str]:
     return out
 
 
+def data_type_evidence(r: dict[str, str]) -> str:
+    """The fields that decided a survey record's data type (PROPOSAL.md §3.4). Survey found
+    MAGs, bins and assemblies by their ENA `assembly_type`, and runs by their library; an
+    assembly found by its sample can be untyped, and counts as a community assembly when its
+    organism is a metagenome."""
+    if r["data_type"] == "reads":
+        return "ena.library_source=METAGENOMIC; ena.library_strategy=WGS or OTHER"
+    if r.get("assembly_type"):
+        return f"ena.assembly_type={r['assembly_type'].lower()}"
+    return f"ena.assembly_type=(empty); ena.scientific_name={r['scientific_name']}"
+
+
 def to_row(r: dict[str, str]) -> Row:
     """A survey record as a samples.tsv row. A genome's biome is its source samples' biome, so
     `sample_accession` holds those (`;`-joined for co-assemblies) when ENA links them."""
@@ -113,6 +125,7 @@ def to_row(r: dict[str, str]) -> Row:
     return {
         "record_accession": r["accession"],
         "data_type": r["data_type"],
+        "data_type_evidence": data_type_evidence(r),
         "source_db": "ENA",
         "sample_accession": r["source_samples"] or r["sample_accession"],
         "study_accession": r["study_accession"],
@@ -174,6 +187,34 @@ def reported_biome(samples: list[EnaSampleMetadata]) -> str:
         if values:
             parts.append(f"{key}={' | '.join(values)}")
     return "; ".join(parts)
+
+
+def expand_co_assemblies(rows: list[Row], metadata: list[EnaSampleMetadata]) -> list[EnaSampleMetadata]:
+    """Replace ENA's virtual co-assembly samples ("mock sample for coassembly … of samples:
+    ERS…,ERS…") in `sample_accession` with the samples they list, as primary IDs, since a
+    co-assembled genome's biome is its source samples'. Returns those samples' metadata."""
+    members = {
+        s.sample_accession: SAMPLE_ID.findall(f"{s.sample_title} {s.sample_description}")
+        for s in metadata
+        if score.CO_ASSEMBLY_SAMPLE.search(s.sample_title)
+    }
+    if not members:
+        return []
+    found = ena.sample_metadata({m for ms in members.values() for m in ms}).data
+    primary = {i: s.sample_accession for s in found for i in s.ids}
+    expanded = 0
+    for r in rows:
+        samples = r["sample_accession"].split(";")
+        if any(s in members for s in samples):
+            r["sample_accession"] = ";".join(
+                dict.fromkeys(primary.get(m, m) for s in samples for m in members.get(s, [s]))
+            )
+            expanded += 1
+    info(
+        f"{len(members):,} virtual co-assembly samples replaced by the {len(found):,} samples they list, "
+        f"in {expanded:,} rows"
+    )
+    return found
 
 
 def sample_evidence(rows: list[Row], metadata: list[EnaSampleMetadata]) -> None:
@@ -296,6 +337,7 @@ def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "
     metadata = ena.sample_metadata(samples).data
     found = {i for s in metadata for i in s.ids}
     info(f"{name}: {len(samples & found):,} samples found, {len(samples - found):,} not returned by ENA")
+    metadata += expand_co_assemblies(rows, metadata)
     sample_evidence(rows, metadata)
     info(f"{name}: hard filters (action 0): {flag_counts(rows, tuple(score.HARD_FILTERS))}")
 

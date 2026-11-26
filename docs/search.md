@@ -43,7 +43,10 @@ already has more processed data stay in the table; `prepare` marks them `not_sel
 
 A genome's biome is the biome of the samples it was assembled from, so its `sample_accession`
 holds its source samples (`derived from`, `;`-joined for co-assemblies) as primary IDs
-(SAMEA/SAMN/SAMD), the same IDs its sample's assemblies and runs carry.
+(SAMEA/SAMN/SAMD), the same IDs its sample's assemblies and runs carry. A genome assembled
+from ENA's virtual co-assembly sample ("mock sample for coassembly … of samples: ERS…,ERS…")
+gets the samples that sample lists instead: in freshwater-water-prok, 41 virtual samples stand
+for 272 samples, behind about 4,100 MAGs.
 
 ## Taxonomy
 
@@ -167,6 +170,7 @@ this version:
 |---|---|
 | `record_accession` | MAG (ENA WGS set), ERZ assembly or bin, or run accession |
 | `data_type` | `mag`, `bin`, `contigs` or `reads`, from the survey search that found the record |
+| `data_type_evidence` | What decided it: `ena.assembly_type=…` for genomes and assemblies (an untyped assembly found by its sample also shows its metagenome organism), the library for runs |
 | `source_db` | `ENA` |
 | `sample_accession` | The record's sample; for genomes, their source samples |
 | `study_accession` | The record's ENA study (PRJ*) |

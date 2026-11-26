@@ -7,9 +7,17 @@
   Assemblies and reads have no organism, so the scope applies to genomes only.
 """
 
-MAG_LAYER = 'assembly_type="metagenome-assembled genome (mag)"'
-CONTIG_LAYER = 'assembly_type="primary metagenome"'
-BIN_LAYER = 'assembly_type="binned metagenome"'
+import re
+
+SAMPLE_ID = re.compile(r"\b(SAM[END][A-Z]?\d+|[EDS]RS\d+)\b")  # BioSample, primary or secondary
+LAYER_TYPES = {  # data type → the ENA assembly_type its layer is searched by
+    "mag": "metagenome-assembled genome (mag)",
+    "contigs": "primary metagenome",
+    "bin": "binned metagenome",
+}
+MAG_LAYER = f'assembly_type="{LAYER_TYPES["mag"]}"'
+CONTIG_LAYER = f'assembly_type="{LAYER_TYPES["contigs"]}"'
+BIN_LAYER = f'assembly_type="{LAYER_TYPES["bin"]}"'
 METAGENOMIC_WGS = 'library_source="METAGENOMIC" AND (library_strategy="WGS" OR library_strategy="OTHER")'
 
 LONG_READ_PLATFORMS = {"OXFORD_NANOPORE", "PACBIO_SMRT"}

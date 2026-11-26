@@ -18,6 +18,7 @@ from .constants import (
     CONTIG_LAYER,
     EXCLUDED_TAXA,
     KINGDOM_TAXA,
+    LAYER_TYPES,
     METAGENOMES,
     LONG_READ_PLATFORMS,
     MAG_LAYER,
@@ -107,6 +108,7 @@ RECORD_COLUMNS = [
     "lat",
     "lon",
     "collection_date",
+    "assembly_type",
 ]
 STUDY_COLUMNS = [
     "study_accession",
@@ -223,9 +225,11 @@ def tag(
     cutoff: str,
     **extra: Any,
 ) -> list[Record]:
-    """ENA rows as survey records (see RECORD_COLUMNS)."""
+    """ENA rows as survey records (see RECORD_COLUMNS). `assembly_type` is the one the record's
+    layer was searched by (LAYER_TYPES)."""
     return [
         {
+            "assembly_type": LAYER_TYPES.get(data_type, ""),
             **asdict(r),
             **extra,
             "data_type": data_type,

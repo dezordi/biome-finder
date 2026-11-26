@@ -392,8 +392,10 @@ on or after the catalogue cutoff), `read_count`, `base_count`, `library_layout`,
 `bin`, `assemble` or `covered`), `covered_by` (the studies of the genomes that cover the record's
 sample),
 `scope_taxon`, `tax_id` and `scientific_name` (MAG organism),
-`source_samples` (MGnify bins, and MAGs in host biomes: the `derived from` samples) and `host`,
-`country`, `lat`, `lon`, `collection_date`. Fields that don't apply to a data type are
+`source_samples` (MAGs and MGnify bins: the `derived from` samples, as primary IDs) and `host`,
+`country`, `lat`, `lon`, `collection_date`, `assembly_type` (MAGs, bins and assemblies: the ENA
+assembly type the record's layer was searched by, or, for an assembly found by its sample, the
+one ENA gives, which can be empty). Fields that don't apply to a data type are
 blank.
 
 ## `studies.tsv` columns

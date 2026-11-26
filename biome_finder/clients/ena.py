@@ -23,6 +23,7 @@ from ..models import (
     columns,
     from_row,
 )
+from ..constants import SAMPLE_ID
 from .http import batches, first_status, get
 
 PORTAL = "https://www.ebi.ac.uk/ena/portal/api"
@@ -130,7 +131,6 @@ def emg_studies() -> Response[set[str]]:
 
 # --- Browser API: sample XML ---
 
-SAMPLE_ID = re.compile(r"\b(SAM[END][A-Z]?\d+|[EDS]RS\d+)\b")
 DERIVED_FROM = {"derived from", "derived_from", "sample derived from"}
 
 

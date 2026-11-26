@@ -308,3 +308,32 @@ def test_lineage_claim(lineage, claim):
 
 def test_mixed_mgnify_studies_say_nothing():
     assert score.third_party_items("mgnify:MGYS1", "root:Mixed", LINEAGE_CFG) == []
+
+
+def test_virtual_co_assembly_samples_are_replaced_by_their_members(monkeypatch):
+    virtual = meta("SAMEA9", "mock sample for coassembly Erken sample of samples: ERS1,ERS2")
+    members = [meta("SAMEA1", secondary_sample_accession="ERS1"), meta("SAMEA2", secondary_sample_accession="ERS2")]
+    monkeypatch.setattr(
+        ena, "sample_metadata", lambda ids: Response(200, [m for m in members if set(m.ids) & set(ids)])
+    )
+    rows = [row("M1", "SAMEA9", data_type="mag"), row("R1", "SAMEA5")]
+    assert search.expand_co_assemblies(rows, [virtual]) == members
+    assert rows[0]["sample_accession"] == "SAMEA1;SAMEA2" and rows[1]["sample_accession"] == "SAMEA5"
+
+
+@pytest.mark.parametrize(
+    "rec, evidence",
+    [
+        (
+            {"data_type": "mag", "assembly_type": "Metagenome-Assembled Genome (MAG)"},
+            "ena.assembly_type=metagenome-assembled genome (mag)",
+        ),
+        (
+            {"data_type": "contigs", "assembly_type": "", "scientific_name": "lake water metagenome"},
+            "ena.assembly_type=(empty); ena.scientific_name=lake water metagenome",
+        ),
+        ({"data_type": "reads"}, "ena.library_source=METAGENOMIC; ena.library_strategy=WGS or OTHER"),
+    ],
+)
+def test_data_type_evidence(rec, evidence):
+    assert search.data_type_evidence(rec) == evidence
