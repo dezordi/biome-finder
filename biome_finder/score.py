@@ -10,7 +10,9 @@ from .models import EnaSampleMetadata, OlsTerm
 # Action 0, hard filters: a sample whose own text names one of these is not a natural sample of
 # any biome. Patterns were checked against freshwater-water-prok (2026-11): bare "control" there
 # is an experiment's untreated arm (a real sample, left to the biome evidence), and "mock" is
-# mostly ENA's "mock sample for coassembly", the virtual sample of a co-assembly.
+# mostly ENA's "mock sample for coassembly", the virtual sample of a co-assembly. An enrichment
+# culture is fine if no organisms were added while culturing, which only a curator can tell, so
+# `enrichment` sends the row to curation (CURATION_FLAGS) rather than excluding it.
 HARD_FILTERS = {
     "control": re.compile(
         r"\b(?:negative|blank|extraction|kit|reagent|no[- ]template)[ ._-]?controls?\b|\bblank|\bntc\b", re.I
@@ -21,7 +23,8 @@ HARD_FILTERS = {
     "spiked": re.compile(r"\bspiked?\b|\bspike-?ins?\b", re.I),
 }
 CO_ASSEMBLY_SAMPLE = re.compile(r"\bmock sample for co-?assembly\b", re.I)  # ENA's text for a virtual sample
-EXCLUDING_FLAGS = {*HARD_FILTERS, "out_of_scope_taxon", "excluded_envo"}  # any of these sends a row to tier D
+CURATION_FLAGS = {"enrichment"}  # any of these sends a row to tier C, whatever its score
+EXCLUDING_FLAGS = {*HARD_FILTERS, "out_of_scope_taxon", "excluded_envo"} - CURATION_FLAGS  # → tier D
 
 
 def sample_text(s: EnaSampleMetadata) -> str:

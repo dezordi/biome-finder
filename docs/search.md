@@ -91,7 +91,8 @@ env_broad_scale=freshwater habitats; env_local_scale=lake; env_medium=water; org
 ```
 
 The hard filters (curation action 0) match the sample's title, description, isolation source
-and env fields. A row matching one, or flagged `out_of_scope_taxon`, goes to tier `D`; a genome
+and env fields. A row matching one (except `enrichment`, see below), or flagged `out_of_scope_taxon`, goes to
+tier `D`; a genome
 matches if any of its source samples does.
 
 | Flag | Matches | Not matched |
@@ -99,12 +100,13 @@ matches if any of its source samples does.
 | `control` | technical controls: negative, blank, extraction, kit, reagent or no-template controls, NTC | an experiment's untreated arm ("control microcosm"), which is a real sample: the biome evidence decides it |
 | `mock` | mock communities | "mock sample for coassembly", ENA's virtual sample for a co-assembly |
 | `synthetic` | synthetic communities | |
-| `enrichment` | enrichments, enriched microbiomes or cultures | |
+| `enrichment` | enrichments, enriched microbiomes or cultures: **tier C, not D**. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell | |
 | `spiked` | spiked samples, spike-ins | |
 
-The patterns were checked against freshwater-water-prok (2026-11): 961 runs, 114 MAGs and one
-assembly went to tier D, mostly enrichments (e.g. PRJNA1177841, "culture enrichment of surface
-water microbiome") and JGI's spiked Walnut Creek samples. Amplicon data and organelle genomes
+The patterns were checked against freshwater-water-prok (2026-11): 380 rows are spiked (mostly
+JGI's Walnut Creek samples, "spiked with Pseudomonas putida & Escherichia coli"), 45 technical
+controls and 5 synthetic communities; 646 rows are enrichments, sent to curation (e.g.
+PRJNA1177841, "culture enrichment of surface water microbiome"). Amplicon data and organelle genomes
 are not filtered yet.
 
 ## Biome score and tiers
@@ -174,7 +176,7 @@ when it was last generated.
 
 In freshwater-water-prok (export of 2026-11-25), 10,406 of its 25,229 samples have a GOLD
 ecosystem, mostly `… > Freshwater > Lake` (5,909) and `… > River` (1,893). With it, MAGs and
-assemblies are 91% tier A, and runs 45% A, 33% C (from 31% A, 39% C without GOLD).
+assemblies are 91% tier A, and runs 45% A, 34% C (from 31% A, 39% C without GOLD).
 
 ## Re-running
 

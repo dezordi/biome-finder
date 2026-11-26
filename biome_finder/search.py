@@ -309,7 +309,10 @@ def biome_evidence(
         ]
         r["third_party_biome"] = "; ".join(dict.fromkeys(third))
         r["score"] = value
-        r["tier"] = "D" if score.EXCLUDING_FLAGS & set(flags) else score.tier(value, conflict)
+        if score.EXCLUDING_FLAGS & set(flags):
+            r["tier"] = "D"
+        else:
+            r["tier"] = "C" if score.CURATION_FLAGS & set(flags) else score.tier(value, conflict)
         r["needs_curation"] = r["tier"] == "C"  # conflicts land there; tier D is excluded, not curated
         r["curated_biome"] = cfg.get("catalogue_biome", "") if r["tier"] in ("A", "B") else ""
 
@@ -355,7 +358,10 @@ def run(
     info(f"{name}: {len(samples & found):,} samples found, {len(samples - found):,} not returned by ENA")
     metadata += expand_co_assemblies(rows, metadata)
     sample_evidence(rows, metadata)
-    info(f"{name}: hard filters (action 0): {flag_counts(rows, tuple(score.HARD_FILTERS))}")
+    info(
+        f"{name}: hard filters (action 0; enrichment goes to curation, the rest to tier D): "
+        f"{flag_counts(rows, tuple(score.HARD_FILTERS))}"
+    )
 
     studies = {r["study_accession"] for r in rows}
     info(f"{name}: titles and descriptions of {len(studies):,} studies from ENA")

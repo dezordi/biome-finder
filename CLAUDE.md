@@ -93,9 +93,10 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
 - Rows are data records, but the **sample** (BioSample) is the unit of biome curation: score
   and tier are per sample, `decision` is per row. A co-assembled genome is accepted only if
   all its source samples are accepted.
-- Exclude: controls, mock and synthetic metagenomes, spiked or enrichment samples, organelle
-  genomes, out-of-scope taxa, amplicon-only data, and off-biome material (host conflict,
-  barn faeces for a gut biome, and so on).
+- Exclude: controls, mock and synthetic metagenomes, spiked samples, organelle genomes,
+  out-of-scope taxa, amplicon-only data, and off-biome material (host conflict, barn faeces
+  for a gut biome, and so on). An enrichment culture is not excluded automatically: it is
+  fine if no organisms were added while culturing, so it goes to curation.
 - Mixed-biome read studies: assemble **all** WGS runs of the study, controls and off-biome
   runs included (`assembly_only`), but bin only the accepted runs. Skip the study
   (`low_yield_study`) if accepted runs / all runs < `min_study_yield`, unless a curator set

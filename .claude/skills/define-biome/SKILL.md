@@ -66,7 +66,7 @@ gold_ecosystems:                     # GOLD 5-level paths
 gold_ecosystems_exclude: []          # GOLD paths (and everything under them) removed
 metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
-keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor", "enrichment",
+keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor",
                    "mesocosm", "microcosm", "spiked", "mock", "synthetic", "control"]
 host: none                           # environmental: any host field is a conflict
 # host: "Bos taurus"
@@ -166,7 +166,9 @@ notes: "Surface and core sediments. Saline/soda lakes excluded."
 7. **Keywords, host, data types and thresholds.**
    - `keywords_include`: specific phrases.
    - `keywords_exclude`: boundary neighbours (e.g. "marine", "estuar" for a freshwater
-     biome) plus manipulations (enrichment, mesocosm, spiked, mock, synthetic, control).
+     biome) plus manipulations (mesocosm, spiked, mock, synthetic, control). Not
+     "enrichment": `search` flags enrichment cultures for curation by itself, since one is
+     fine if no organisms were added while culturing.
    - `host: none` for environmental biomes.
    - `ncbi_isolate_query`: an NCBI BioProject query. It finds isolates *and* MAGs, and some
      hits are reads only.

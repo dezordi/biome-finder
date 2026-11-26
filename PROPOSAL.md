@@ -113,7 +113,7 @@ gold_ecosystems:                     # GOLD 5-level paths (also used by awesome-
 gold_ecosystems_exclude: []          # GOLD paths (and everything under them) removed
 metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
-keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor", "enrichment",
+keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor",
                    "mesocosm", "microcosm", "spiked", "mock", "synthetic", "control"]
 host: none                           # environmental: any host field is a conflict
 # host: "Bos taurus"
@@ -313,7 +313,7 @@ soon as the evidence is conclusive:
 
 | # | Action | Automated by | Base weight (to calibrate) |
 |---|---|---|---|
-| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/enrichment/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9 | rules | gate |
+| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell: flagged `enrichment`, tier C | rules | gate |
 | 1 | Third-party curated biome (MGnify study lineage, GOLD, Metalog) | lookup | 0.9 |
 | 2 | Structured sample metadata (ENVO `env_*`, `env_biome`, `isolation_source`, host, body site). ENA `env_tax:*`/`env_geo:*` tags are derived from the organism's taxonomy, not the sample, so they don't count (a sample can carry both `env_tax:marine` and `env_tax:freshwater`) | rules + term map | 0.8 when specific, 0.4 when generic, ~0 for `env_tax`/`env_geo` |
 | 3 | Consistency with sibling samples in the same project | rules | ± 0.1 modifier |

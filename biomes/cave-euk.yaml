@@ -18,7 +18,6 @@ keywords_include:
 keywords_exclude: 
   - "cave water"
   - "marine"
-  - "enrichment"
   - "mesocosm"
   - "microcosm"
   - "spiked"

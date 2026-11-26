@@ -66,7 +66,9 @@ Each failure is a `skip`; record the reason.
 - Out-of-scope taxon (see Core rules), or an organelle genome.
 - Control, mock or synthetic metagenome. In mixed studies these are *assembled* but never
   binned.
-- Spiked or enrichment sample, or otherwise manipulated in a way we don't want.
+- Spiked sample (organisms added), or otherwise manipulated in a way we don't want. An
+  enrichment culture is fine if no organisms were added while culturing: check what was done
+  (sample metadata, paper methods) before excluding it.
 - Amplicon-only data (not WGS).
 - Off-biome material, e.g. a host conflict for an environmental biome, or barn faeces for a
   farm-animal gut biome.

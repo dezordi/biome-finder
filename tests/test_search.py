@@ -388,3 +388,15 @@ def test_gold_export_maps_biosamples_to_ecosystems(tmp_path, monkeypatch):
         found = {g.biosample_accession: g for g in gold.biosamples(tmp_path / "gold.xlsx").data}
         assert found["SAMN1"].ecosystem_path == "Environmental > Aquatic > Freshwater > Lake > "
         assert found["SAMN2"].gold_id == "Go1" and len(found) == 2
+
+
+def test_enrichment_goes_to_curation_but_spiked_samples_are_excluded():
+    metadata = [
+        meta("S1", "culture enrichment of lake water", local_environmental_context="freshwater lake"),
+        meta("S2", "lake water spiked with E. coli", local_environmental_context="freshwater lake"),
+    ]
+    rows = [row("R1", "S1"), row("R2", "S2")]
+    search.sample_evidence(rows, metadata)
+    by = run_biome(metadata, rows)
+    assert by["R1"]["flags"] == "enrichment" and by["R1"]["tier"] == "C" and by["R1"]["needs_curation"]
+    assert by["R2"]["flags"] == "spiked" and by["R2"]["tier"] == "D"
