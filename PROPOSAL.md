@@ -277,7 +277,7 @@ no resolved tax ID or name is stored:
 | `curated_biome` | Biome lineage proposed by the scorer |
 | `score` | 0–100 confidence that the **sample** belongs to the target biome |
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
-| `needs_curation` | bool (tier C, any conflict, or `data_type = unknown`) |
+| `needs_curation` | bool: tier C (where any conflict and `data_type = unknown` land); tier D rows are excluded, not curated |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
 | `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |

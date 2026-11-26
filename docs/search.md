@@ -133,7 +133,7 @@ freshwater metagenome"), and ENA's "mock sample for coassembly".
   the same way. Action 3 (sibling samples) adds up to ±10: the share of the study's samples
   whose own metadata points in, minus the share pointing out.
 - **Tier**: `A` ≥ 80, `B` 60–79, `C` below 60 or with a conflict (an opposing item of weight
-  ≥ 0.6), `D` with an excluding flag. `needs_curation` is tier C or a conflict;
+  ≥ 0.6), `D` with an excluding flag. `needs_curation` is tier C (tier D is excluded, not curated);
   `curated_biome` is the config's `catalogue_biome` for tiers A and B.
 - **Genomes** take their worst source sample, since a co-assembled genome is accepted only if
   all its source samples are.
@@ -174,7 +174,7 @@ this version:
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |
 | `score` | The biome score, 0–100 (the worst source sample for a genome) |
 | `tier` | `A`, `B`, `C`, or `D` for rows with an excluding flag |
-| `needs_curation` | Tier C or a conflict |
+| `needs_curation` | Tier C, where every conflict lands; tier D rows are excluded, not curated |
 | `evidence` | The evidence items, `action:source:claim:quote`, `; `-joined |
 | `read_stats` | Runs: read count, layout, platform |
 | `first_public` | Date the record became public |

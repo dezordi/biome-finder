@@ -247,7 +247,7 @@ def biome_evidence(
         r["evidence"] = "; ".join(str(e) for e in found)
         r["score"] = value
         r["tier"] = "D" if score.EXCLUDING_FLAGS & set(flags) else score.tier(value, conflict)
-        r["needs_curation"] = r["tier"] == "C" or conflict
+        r["needs_curation"] = r["tier"] == "C"  # conflicts land there; tier D is excluded, not curated
         r["curated_biome"] = cfg.get("catalogue_biome", "") if r["tier"] in ("A", "B") else ""
 
 
