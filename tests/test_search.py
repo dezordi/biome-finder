@@ -280,3 +280,31 @@ def test_biome_evidence_scores_samples_and_genomes_take_their_worst_source_sampl
     assert by["R5"]["tier"] == "C" and by["R5"]["needs_curation"]  # a conflict
     assert by["M1"]["tier"] == "C" and by["M1"]["needs_curation"]  # S1 is fine, but a co-assembly needs S5 too
     assert "project_description:P2" not in by["M1"]["evidence"]  # the study only names the taxon
+
+
+LINEAGE_CFG = {
+    "mgnify_lineages": ["root:Environmental:Aquatic:Freshwater:Lake", "root:Environmental:Aquatic:Freshwater:Lentic"],
+    "mgnify_lineages_exclude": ["root:Environmental:Aquatic:Freshwater:Lentic:Sediment"],
+    "lineage_equivalents": {
+        "root:Environmental:Aquatic:Freshwater:Reservoir": "root:Environmental:Aquatic:Freshwater:Lake"
+    },
+}
+
+
+@pytest.mark.parametrize(
+    "lineage, claim",
+    [
+        ("root:Environmental:Aquatic:Freshwater:Lake", ("in", 1.0)),
+        ("root:Environmental:Aquatic:Freshwater:Lentic:Water", ("in", 1.0)),  # a sub-lineage
+        ("root:Environmental:Aquatic:Freshwater:Lentic:Sediment", ("out", 1.0)),  # an excluded subtree
+        ("root:Environmental:Aquatic:Freshwater", ("in", 0.8)),  # an ancestor: 4 of the target's 5 levels
+        ("root:Environmental:Aquatic:Freshwater:Wetlands:Bog", ("out", 1.0)),
+        ("root:Environmental:Aquatic:Freshwater:Reservoir", ("in", 1.0)),  # through lineage_equivalents
+    ],
+)
+def test_lineage_claim(lineage, claim):
+    assert score.lineage_claim(lineage, LINEAGE_CFG) == claim
+
+
+def test_mixed_mgnify_studies_say_nothing():
+    assert score.third_party_items("mgnify:MGYS1", "root:Mixed", LINEAGE_CFG) == []

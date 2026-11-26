@@ -271,6 +271,15 @@ class MgnifyCatalogue:
     ftp_url: str
 
 
+@dataclass(frozen=True)
+class MgnifyStudy:
+    """A study MGnify analysed (`/studies/`), with the biome its curators gave it."""
+
+    accession: str  # MGYS…
+    ena_accessions: tuple[str, ...]  # the ENA study's PRJ and ERP/SRP/DRP IDs
+    lineage: str  # e.g. root:Environmental:Aquatic:Freshwater:Lake
+
+
 # --- MGnify FTP: a catalogue's genomes-all_metadata.tsv ---
 
 

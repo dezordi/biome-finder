@@ -8,8 +8,7 @@ rows, and `prepare` turns the accepted ones into workflow inputs.
 In development (milestone M2). This version builds the table from the survey records and
 merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI, each
 sample's reported biome, the hard filters (tier D) and the rule-based biome score (curation
-actions 2–5, tiers A–C). Third-party biomes (MGnify, GOLD), coordinates and isolate genomes
-come next; their columns are already in the table, empty.
+actions 1–5, tiers A–C). GOLD ecosystems, coordinates and isolate genomes come next; their columns are already in the table, empty.
 ```
 
 ## Usage
@@ -116,6 +115,9 @@ or other biome) or `excluded_envo`:
 
 | Action | Source | Claim | Weight |
 |---|---|---|---|
+| `third_party_biome` | the biome lineage MGnify's curators gave the study (API v2 `/studies/`), under `mgnify_lineages` and none of `mgnify_lineages_exclude` | in | 0.9 |
+| `third_party_biome` | an ancestor of a target lineage (e.g. `…:Freshwater` for `…:Freshwater:Lake`) | in, specificity = its depth over the target's (0.8) | 0.9 |
+| `third_party_biome` | any other lineage (`…:Wetlands:Bog`, `…:Freshwater:Sediment`) | out | 0.9 (a conflict) |
 | `sample_metadata` | an `env_*` field naming an `envo_include` term or one under it, by ENVO ID or exact name (label or synonym) | in | 0.8 |
 | `sample_metadata` | an `env_*` field naming an `envo_exclude` term or one under it | excluded_envo | tier D |
 | `sample_metadata` | a `keywords_include` word in the sample's text (title, description, isolation source, env fields) | in | 0.4 |
@@ -124,6 +126,9 @@ or other biome) or `excluded_envo`:
 | `project_description` | a `keywords_exclude` word there | out | 0.3: study texts name other habitats in passing |
 | `metagenome_name` | the sample's organism is one of `metagenome_taxa` | in | 0.3: often a default |
 | `metagenome_name` | the organism is another metagenome | out | 0.3 |
+
+A lineage is first mapped through `lineage_equivalents`. MGnify's `root:Mixed`, for studies
+spanning several biomes, says nothing about a sample and is ignored.
 
 Keywords are matched at a word start (`estuar` matches "estuarine") and skip the metagenome
 taxon names, which default titles only repeat ("Metagenome or environmental sample from
@@ -139,8 +144,8 @@ freshwater metagenome"), and ENA's "mock sample for coassembly".
   all its source samples are.
 
 The weights are PROPOSAL.md's starting values, not yet calibrated against a curated
-freshwater set. In freshwater-water-prok (2026-11): MAGs 89% A, 9% C; assemblies 74% A, 16% C;
-runs 37% A, 33% C; 14% of all rows in tier C.
+freshwater set. In freshwater-water-prok (2026-11): MAGs 88% A, 9% C; assemblies 75% A, 17% C;
+runs 31% A, 39% C; 16% of all rows in tier C. 35 of its 4,219 studies have an MGnify biome.
 
 ENVO shares synonyms between terms ("lake" is a synonym of pond, reservoir and saline
 evaporation pond), so a value matches by ENVO ID first, then by exact label, then by exact
@@ -171,6 +176,7 @@ this version:
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
 | `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
+| `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>` |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |
 | `score` | The biome score, 0–100 (the worst source sample for a genome) |
 | `tier` | `A`, `B`, `C`, or `D` for rows with an excluding flag |

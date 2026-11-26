@@ -1,8 +1,9 @@
 """Scoring: the curation actions of PROPOSAL.md §3.7, cheapest first."""
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from .models import EnaSampleMetadata, OlsTerm
 
@@ -43,7 +44,9 @@ def hard_flags(s: EnaSampleMetadata) -> list[str]:
     return [flag for flag, pattern in HARD_FILTERS.items() if pattern.search(text)]
 
 
-# Actions 2-5: biome evidence. Base weights are PROPOSAL.md §3.7's, still to calibrate.
+# Actions 1-5: biome evidence. Base weights are PROPOSAL.md §3.7's, still to calibrate.
+W_THIRD_PARTY = 0.9  # action 1, a curated biome lineage (MGnify study)
+UNINFORMATIVE_LINEAGES = {"root:Mixed"}  # MGnify's node for studies spanning several biomes
 W_ENVO = 0.8  # action 2, an env_* term of the config (ENVO, subclasses included)
 W_SAMPLE_KEYWORD = 0.4  # action 2, a config keyword in the sample's text: generic
 W_SAMPLE_EXCLUDE = 0.6  # action 2, an exclude keyword in the sample's text: a conflict
@@ -168,6 +171,39 @@ def study_items(
     if kw_out and (m := kw_out.search(text)):
         items.append(Evidence("project_description", study, "out", 1.0, W_STUDY_EXCLUDE, m.group(0)))
     return items
+
+
+def under(lineage: str, parent: str) -> bool:
+    """`lineage` is `parent` or one of its sub-lineages."""
+    return lineage == parent or lineage.startswith(parent + ":")
+
+
+def lineage_claim(lineage: str, cfg: Mapping[str, Any]) -> tuple[str, float]:
+    """How a curated biome lineage relates to the config: (`in` or `out`, specificity). It is
+    first mapped through `lineage_equivalents` (a lineage and its sub-lineages). Under one of
+    `mgnify_lineages` and none of `mgnify_lineages_exclude`: in, 1. An ancestor of a target
+    (e.g. `…:Freshwater` for `…:Freshwater:Lake`) supports it only partly: in, its depth over the
+    target's. Anything else, excluded subtrees included: out, 1."""
+    for src, dst in (cfg.get("lineage_equivalents") or {}).items():
+        if under(lineage, src):
+            lineage = dst + lineage[len(src) :]
+    targets = cfg.get("mgnify_lineages") or []
+    if any(under(lineage, x) for x in cfg.get("mgnify_lineages_exclude") or []):
+        return "out", 1.0
+    if any(under(lineage, t) for t in targets):
+        return "in", 1.0
+    depth = len(lineage.split(":"))
+    partial = [depth / len(t.split(":")) for t in targets if under(t, lineage)]
+    return ("in", max(partial)) if partial else ("out", 1.0)
+
+
+def third_party_items(source: str, lineage: str, cfg: Mapping[str, Any]) -> list[Evidence]:
+    """Action 1: a curated biome lineage (e.g. the MGnify study's) as one evidence item; none
+    for an UNINFORMATIVE_LINEAGES one, which says nothing about a single sample."""
+    if not lineage or lineage in UNINFORMATIVE_LINEAGES:
+        return []
+    claim, specificity = lineage_claim(lineage, cfg)
+    return [Evidence("third_party_biome", source, claim, round(specificity, 2), W_THIRD_PARTY, lineage)]
 
 
 def combine(items: list[Evidence], siblings: float = 0.0) -> tuple[float, bool]:

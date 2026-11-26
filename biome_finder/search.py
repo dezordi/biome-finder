@@ -9,10 +9,10 @@ import yaml
 from . import score
 from collections import Counter, defaultdict
 
-from .clients import ena, ncbi, ols
+from .clients import ena, mgnify, ncbi, ols
 from .log import counts, info
 from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS
-from .models import EnaSampleMetadata, NcbiTaxdump, NcbiTaxon
+from .models import EnaSampleMetadata, MgnifyStudy, NcbiTaxdump, NcbiTaxon
 from .score import Evidence, Terms
 from .survey import Config, write_tsv
 
@@ -216,13 +216,16 @@ def biome_evidence(
     study_texts: dict[str, str],
     include: Terms,
     exclude: Terms,
+    mgnify_studies: dict[str, MgnifyStudy] | None = None,
 ) -> None:
-    """Score each row (actions 2-5, score.py) and fill `evidence`, `score`, `tier`,
+    """Score each row (actions 1-5, score.py) and fill `evidence`, `score`, `tier`,
     `needs_curation` and `curated_biome`. The sample is the unit: each of a row's samples is
     scored on its own metadata plus the row's study, and the row takes its worst sample, since a
     co-assembled genome is accepted only if all its source samples are. A sample with an env_*
     term under `envo_exclude` is flagged `excluded_envo` and goes to tier D; tier D from the hard
-    filters stays."""
+    filters stays. `mgnify_studies` (by ENA study ID) gives the study's curated MGnify biome
+    (action 1), also written to `third_party_biome`."""
+    mgnify_studies = mgnify_studies or {}
     kw_in, kw_out = score.keyword(cfg.get("keywords_include") or []), score.keyword(cfg.get("keywords_exclude") or [])
     taxa = {t.lower() for t in cfg.get("metagenome_taxa") or []}
     by_id = {i: s for s in metadata for i in s.ids}
@@ -234,6 +237,9 @@ def biome_evidence(
     }
     lean = siblings(rows, items)
     study_items = {s: score.study_items(s, t, kw_in, kw_out, taxa) for s, t in study_texts.items()}
+    for s in {r["study_accession"] for r in rows} & set(mgnify_studies):
+        mg = mgnify_studies[s]
+        study_items[s] = score.third_party_items(f"mgnify:{mg.accession}", mg.lineage, cfg) + study_items.get(s, [])
     for r in rows:
         study = study_items.get(r["study_accession"], [])
         samples = [items.get(a, []) for a in r["sample_accession"].split(";") if a] or [[]]
@@ -245,6 +251,8 @@ def biome_evidence(
             flags.append("excluded_envo")
         r["flags"] = ";".join(flags)
         r["evidence"] = "; ".join(str(e) for e in found)
+        listed = mgnify_studies.get(r["study_accession"])
+        r["third_party_biome"] = f"mgnify:{listed.accession}:{listed.lineage}" if listed and listed.lineage else ""
         r["score"] = value
         r["tier"] = "D" if score.EXCLUDING_FLAGS & set(flags) else score.tier(value, conflict)
         r["needs_curation"] = r["tier"] == "C"  # conflicts land there; tier D is excluded, not curated
@@ -299,7 +307,14 @@ def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "
         f"{name}: ENVO from OLS: {len(cfg.get('envo_include') or [])} include terms → {len(include.ids):,} with "
         f"descendants, {len(cfg.get('envo_exclude') or [])} exclude terms → {len(exclude.ids):,}"
     )
-    biome_evidence(rows, cfg, metadata, texts, include, exclude)
+    info(f"{name}: MGnify study biomes (action 1)")
+    by_ena = {a: m for m in mgnify.studies().data for a in m.ena_accessions}
+    in_mgnify = studies & set(by_ena)
+    info(
+        f"{name}: {len(in_mgnify):,} of {len(studies):,} studies have an MGnify biome: "
+        f"{counts(Counter(by_ena[s].lineage for s in in_mgnify))}"
+    )
+    biome_evidence(rows, cfg, metadata, texts, include, exclude, by_ena)
     for data_type, tiers in sorted(tier_counts(rows).items()):
         info(f"{name}: {data_type}: " + ", ".join(f"tier {t} {tiers.get(t, 0):,}" for t in "ABCD"))
     info(

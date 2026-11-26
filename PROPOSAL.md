@@ -162,7 +162,7 @@ the LLM key.
 | ENA cross-references | Publications describing or citing a record; assemblies/MAGs derived from a read study | `/ena/xref/rest/` |
 | NCBI | WGS sets, BioSample attributes and package (MIMAG/MISAG/MIGS), BioProject, `assembly_summary_genbank.txt` (GCA by BioSample, `excluded_from_refseq`) | E-utilities + FTP |
 | NCBI Taxonomy | Monthly `new_taxdump_YYYY-MM-01.zip` from `pub/taxonomy/taxdump_archive/` (`merged.dmp`, `delnodes.dmp`, lineages) | FTP |
-| MGnify API | Existing catalogues and their genomes (update dedup); studies with a curated MGnify biome lineage; MGnify-generated ERZ assemblies | `/metagenomics/api/v2/genomes/catalogues/` for catalogues (v1 lists outdated versions); `/metagenomics/api/v1/` for biomes and studies |
+| MGnify API | Existing catalogues and their genomes (update dedup); studies with a curated MGnify biome lineage; MGnify-generated ERZ assemblies | `/metagenomics/api/v2/genomes/catalogues/` for catalogues (v1 lists outdated versions); `/metagenomics/api/v2/studies/` for the studies' curated biomes (action 1); `/metagenomics/api/v1/biomes/` to browse the lineage tree |
 | Metalog (EMBL) | Manually curated sample metadata, where available | Downloads |
 | JGI GOLD | Curated 5-level ecosystem classification of BioSamples | Public data export |
 | Europe PMC | Paper metadata, open-access full text (Methods, Data availability), accession text-mining | REST API |
