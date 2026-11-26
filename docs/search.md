@@ -7,8 +7,9 @@ rows, and `prepare` turns the accepted ones into workflow inputs.
 ```{note}
 In development (milestone M2). This version builds the table from the survey records and
 merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI, each
-sample's reported biome, and the hard filters (tier X). Biome scoring, tiers A–C and isolate
-genomes come next; their columns are already in the table, empty.
+sample's reported biome, the hard filters (tier D) and the rule-based biome score (curation
+actions 2–5, tiers A–C). Third-party biomes (MGnify, GOLD), coordinates and isolate genomes
+come next; their columns are already in the table, empty.
 ```
 
 ## Usage
@@ -24,7 +25,15 @@ biome-finder search --biome biomes/<name>.yaml --survey survey/ --out samples.ts
 | `--survey` | Survey folder holding `biomes/<name>/records.tsv` (default `survey/`). Run [survey](survey.md) on the biome first. |
 | `--out` | The table (default `samples.tsv`). If it exists, the new search is merged into it. |
 | `--since` | Only records public on or after this date (`YYYY-MM-DD`), for catalogue updates. |
+| `-v` / `--verbose` | Before the command (`biome-finder -v search …`): also log every HTTP request, cached or not. |
+| `-v` / `--verbose` | Before the command (`biome-finder -v search …`): also log every HTTP request, cached or not. |
 | `--taxdump` | NCBI taxonomy release (`YYYY-MM-DD`): the monthly `new_taxdump_<YYYY-MM>-01.zip` of that month. Default: the latest. |
+
+Progress goes to stderr, one timestamped line per step: records read, taxonomy flags, samples
+found in ENA, hard-filter counts, ENVO terms expanded, tiers per data type, and the merge.
+
+Progress goes to stderr, one timestamped line per step: records read, taxonomy flags, samples
+found in ENA, hard-filter counts, ENVO terms expanded, tiers per data type, and the merge.
 
 ## Records
 
@@ -83,7 +92,7 @@ env_broad_scale=freshwater habitats; env_local_scale=lake; env_medium=water; org
 ```
 
 The hard filters (curation action 0) match the sample's title, description, isolation source
-and env fields. A row matching one, or flagged `out_of_scope_taxon`, goes to tier `X`; a genome
+and env fields. A row matching one, or flagged `out_of_scope_taxon`, goes to tier `D`; a genome
 matches if any of its source samples does.
 
 | Flag | Matches | Not matched |
@@ -95,9 +104,48 @@ matches if any of its source samples does.
 | `spiked` | spiked samples, spike-ins | |
 
 The patterns were checked against freshwater-water-prok (2026-11): 961 runs, 114 MAGs and one
-assembly went to tier X, mostly enrichments (e.g. PRJNA1177841, "culture enrichment of surface
+assembly went to tier D, mostly enrichments (e.g. PRJNA1177841, "culture enrichment of surface
 water microbiome") and JGI's spiked Walnut Creek samples. Amplicon data and organelle genomes
 are not filtered yet.
+
+## Biome score and tiers
+
+Each sample is scored on its own metadata plus its record's study. Evidence items are
+`action:source:claim:quote`, where the claim is `in` (the config's biome), `out` (an excluded
+or other biome) or `excluded_envo`:
+
+| Action | Source | Claim | Weight |
+|---|---|---|---|
+| `sample_metadata` | an `env_*` field naming an `envo_include` term or one under it, by ENVO ID or exact name (label or synonym) | in | 0.8 |
+| `sample_metadata` | an `env_*` field naming an `envo_exclude` term or one under it | excluded_envo | tier D |
+| `sample_metadata` | a `keywords_include` word in the sample's text (title, description, isolation source, env fields) | in | 0.4 |
+| `sample_metadata` | a `keywords_exclude` word in the sample's text | out | 0.6 (a conflict) |
+| `project_description` | a `keywords_include` word in the study's title or description | in | 0.6 |
+| `project_description` | a `keywords_exclude` word there | out | 0.3: study texts name other habitats in passing |
+| `metagenome_name` | the sample's organism is one of `metagenome_taxa` | in | 0.3: often a default |
+| `metagenome_name` | the organism is another metagenome | out | 0.3 |
+
+Keywords are matched at a word start (`estuar` matches "estuarine") and skip the metagenome
+taxon names, which default titles only repeat ("Metagenome or environmental sample from
+freshwater metagenome"), and ENA's "mock sample for coassembly".
+
+- **Score** (0–100): agreeing items combine as `1 − Π(1 − w)`, opposing ones scale that down
+  the same way. Action 3 (sibling samples) adds up to ±10: the share of the study's samples
+  whose own metadata points in, minus the share pointing out.
+- **Tier**: `A` ≥ 80, `B` 60–79, `C` below 60 or with a conflict (an opposing item of weight
+  ≥ 0.6), `D` with an excluding flag. `needs_curation` is tier C or a conflict;
+  `curated_biome` is the config's `catalogue_biome` for tiers A and B.
+- **Genomes** take their worst source sample, since a co-assembled genome is accepted only if
+  all its source samples are.
+
+The weights are PROPOSAL.md's starting values, not yet calibrated against a curated
+freshwater set. In freshwater-water-prok (2026-11): MAGs 89% A, 9% C; assemblies 74% A, 16% C;
+runs 37% A, 33% C; 14% of all rows in tier C.
+
+ENVO shares synonyms between terms ("lake" is a synonym of pond, reservoir and saline
+evaporation pond), so a value matches by ENVO ID first, then by exact label, then by exact
+synonym; the strongest match decides between `envo_include` and `envo_exclude`, and a tie
+excludes.
 
 ## Re-running
 
@@ -121,9 +169,13 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
-| `tier` | `X` for rows with a hard-filter or `out_of_scope_taxon` flag; A–C come with scoring |
+| `curated_biome` | The config's `catalogue_biome`, for tiers A and B |
+| `score` | The biome score, 0–100 (the worst source sample for a genome) |
+| `tier` | `A`, `B`, `C`, or `D` for rows with an excluding flag |
+| `needs_curation` | Tier C or a conflict |
+| `evidence` | The evidence items, `action:source:claim:quote`, `; `-joined |
 | `read_stats` | Runs: read count, layout, platform |
 | `first_public` | Date the record became public |
 | `curation_note`, `decision` | For the curator: `decision` is `keep` or `skip` and overrides the tier |

@@ -16,8 +16,25 @@ envo_include:
   - ENVO:00000021  # freshwater lake
   - ENVO:01000599  # river water
   - ENVO:01000253  # freshwater river biome
-envo_exclude:
+  - ENVO:00002011  # fresh water
+  - ENVO:00000873  # freshwater biome
+  - ENVO:04000007  # lake water
+  - ENVO:01000297  # freshwater river
+  - ENVO:00002131  # epilimnion
+  - ENVO:00000033  # pond
+  - ENVO:00000022  # river
+  - ENVO:00000020  # lake
+envo_exclude:  # an excluded term wins over an included one above it
   - ENVO:00002007  # sediment
+  - ENVO:00000019  # saline lake
+  - ENVO:01001020  # hypersaline lake
+  - ENVO:00000540  # brackish lake
+  - ENVO:00000541  # brackish pond
+  - ENVO:00000055  # saline evaporation pond
+  - ENVO:00003064  # drinking water
+  - ENVO:00000058  # underground lake
+  - ENVO:00000059  # underground river
+  - ENVO:03600092  # artificial pond
 gold_ecosystems: 
   - "Environmental > Aquatic > Freshwater"
 metagenome_taxa: 

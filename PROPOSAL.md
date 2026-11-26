@@ -276,7 +276,7 @@ no resolved tax ID or name is stored:
 | `third_party_biome` | MGnify lineage, GOLD ecosystem or Metalog classification, if any |
 | `curated_biome` | Biome lineage proposed by the scorer |
 | `score` | 0–100 confidence that the **sample** belongs to the target biome |
-| `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `X` excluded |
+| `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
 | `needs_curation` | bool (tier C, any conflict, or `data_type = unknown`) |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
 | `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
@@ -327,9 +327,13 @@ soon as the evidence is conclusive:
 **Combining evidence.** Each item gives `(claimed_lineage, specificity, weight)`.
 `specificity` is how deep the claim reaches into the target lineage: "Aquatic" only
 partially supports "Aquatic:Freshwater:Sediment". Agreeing items are combined as
-`1 − Π(1 − w·s)`. Conflicting items with weight ≥ 0.6 set `needs_curation`, whatever the
-score. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
-**X** hard-filter fail. When unsure, exclude: that's guideline A.1 ("if you are not
+`1 − Π(1 − w·s)`; opposing items scale that down the same way, `× Π(1 − w·s)`. Conflicting
+items with weight ≥ 0.6 set `needs_curation`, whatever the score. Action 3 adds up to ±0.1:
+the share of the study's samples whose own metadata points in, minus the share pointing out.
+A keyword match skips the metagenome taxon names, which default sample titles repeat and
+action 5 already counts. An exclude keyword in a study's text weighs 0.3, below the conflict
+threshold: study descriptions name other habitats in passing. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
+**D** hard-filter fail. When unsure, exclude: that's guideline A.1 ("if you are not
 convinced… leave it out").
 
 **Calibration.** Weights and thresholds are fitted on `marine_euks.tsv`:
@@ -538,7 +542,7 @@ copy as `samples.tsv.bak`.
   `ena_genomes`, `ena_genomes_checkm` and `ncbi_genomes`. The MGnify-only values (catalogue
   name, version, MGYG range) are placeholders for the operator.
 - **For updates**, `prepare` also lists the old catalogue's genomes whose rows are now
-  tier X or `skip`. That list is the input for `--remove_genomes`.
+  tier D or `skip`. That list is the input for `--remove_genomes`.
 
 ### 4.2 Contigs → genomes-generation
 

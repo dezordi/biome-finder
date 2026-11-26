@@ -3,8 +3,8 @@ import csv
 import pytest
 
 from biome_finder import score, search
-from biome_finder.clients import ena, ncbi
-from biome_finder.models import NCBI_RANKS, EnaSampleMetadata, NcbiTaxdump, NcbiTaxon, Response
+from biome_finder.clients import ena, ncbi, ols
+from biome_finder.models import NCBI_RANKS, EnaSampleMetadata, EnaStudy, NcbiTaxdump, NcbiTaxon, OlsTerm, Response
 
 
 def taxon(tax_id, name, rank, ancestors, **ranks):
@@ -32,6 +32,8 @@ def taxdump(monkeypatch):
     monkeypatch.setattr(ncbi, "latest_taxdump", lambda: Response(200, "2026-11-01"))
     monkeypatch.setattr(ncbi, "taxdump", lambda release, ids: Response(200, DUMP))
     monkeypatch.setattr(ena, "sample_metadata", lambda ids: Response(200, []))
+    monkeypatch.setattr(ena, "studies", lambda ids: Response(200, []))
+    monkeypatch.setattr(ols, "with_descendants", lambda term: Response(200, []))
 
 
 FIELDS = ["data_type", "accession", "study_accession", "sample_accession", "source_samples", "first_public"]
@@ -151,7 +153,7 @@ def test_hard_filters(text, flags):
     assert score.hard_flags(meta("S1", text)) == flags
 
 
-def test_sample_evidence_fills_reported_biome_and_sends_hard_filters_to_tier_x():
+def test_sample_evidence_fills_reported_biome_and_sends_hard_filters_to_tier_d():
     rows = [
         {"record_accession": "M1", "sample_accession": "SA;SB", "flags": ""},
         {"record_accession": "R1", "sample_accession": "SA", "flags": "low_reads"},
@@ -172,6 +174,109 @@ def test_sample_evidence_fills_reported_biome_and_sends_hard_filters_to_tier_x()
     assert m1["reported_biome"] == (
         "env_broad_scale=freshwater lake biome | river biome; organism=freshwater metagenome"
     )
-    assert m1["flags"] == "spiked" and m1["tier"] == "X"  # one source sample is enough
+    assert m1["flags"] == "spiked" and m1["tier"] == "D"  # one source sample is enough
     assert r1["flags"] == "low_reads" and "tier" not in r1
     assert r2["reported_biome"] == "env_medium=water"
+
+
+LAKE = score.Terms.of(
+    [
+        OlsTerm("ENVO:00000021", "freshwater lake", ("FreshwaterLake",)),
+        OlsTerm("ENVO:01000252", "freshwater lake biome", ()),
+    ]
+)
+SEDIMENT = score.Terms.of([OlsTerm("ENVO:00002007", "sediment", ()), OlsTerm("ENVO:00000546", "lake sediment", ())])
+CFG = {
+    "catalogue_biome": "root:Environmental:Aquatic:Freshwater",
+    "metagenome_taxa": ["freshwater metagenome"],
+    "keywords_include": ["freshwater", "lake water"],
+    "keywords_exclude": ["marine", "mock", "sediment"],
+}
+
+
+@pytest.mark.parametrize(
+    "value, match",
+    [
+        ("freshwater lake biome [ENVO:01000252]", True),
+        ("freshwater lake biome[ENVO_01000252]", True),  # as submitters write it
+        ("Freshwater Lake", True),  # the name alone
+        ("ENVO:1000252", True),  # a dropped leading zero
+        ("saline lake", False),
+        ("freshwater lake water", False),  # names match exactly, never as substrings
+    ],
+)
+def test_envo_terms_match_by_id_or_exact_name(value, match):
+    assert bool(LAKE.match(value)) is match
+
+
+def test_an_included_label_beats_an_excluded_synonym():
+    pond = score.Terms.of([OlsTerm("ENVO:00000055", "saline evaporation pond", ("lake",))])
+    lake = score.Terms.of([OlsTerm("ENVO:00000020", "lake", ())])
+    items = score.sample_items(meta("S1", local_environmental_context="lake"), lake, pond, None, None, set())
+    assert [e.claim for e in items] == ["in"]
+    items = score.sample_items(meta("S1", local_environmental_context="salt pond"), lake, pond, None, None, set())
+    assert items == []  # neither a label nor a synonym of the included terms
+
+
+def test_combine_and_tiers():
+    envo = score.Evidence("sample_metadata", "env_local_scale", "in", 1.0, score.W_ENVO, "")
+    name = score.Evidence("metagenome_name", "organism", "in", 1.0, score.W_METAGENOME, "")
+    marine = score.Evidence("sample_metadata", "text", "out", 1.0, score.W_SAMPLE_EXCLUDE, "marine")
+    assert score.combine([envo, name]) == (86, False) and score.tier(86, False) == "A"  # 1 − 0.2·0.7
+    assert score.combine([name]) == (30, False) and score.tier(30, False) == "C"  # a default name alone
+    assert score.combine([name], siblings=1.0) == (40, False)
+    value, conflict = score.combine([envo, name, marine])
+    assert conflict and score.tier(value, conflict) == "C"
+
+
+def run_biome(metadata, rows, texts=None):
+    search.biome_evidence(rows, CFG, metadata, texts or {}, LAKE, SEDIMENT)
+    return {r["record_accession"]: r for r in rows}
+
+
+def row(acc, sample, study="P1", data_type="reads"):
+    return {
+        "record_accession": acc,
+        "data_type": data_type,
+        "sample_accession": sample,
+        "study_accession": study,
+        "flags": "",
+    }
+
+
+def test_biome_evidence_scores_samples_and_genomes_take_their_worst_source_sample():
+    metadata = [
+        meta(
+            "S1",
+            "Metagenome or environmental sample from freshwater metagenome",
+            local_environmental_context="freshwater lake",
+            scientific_name="freshwater metagenome",
+        ),
+        meta(
+            "S2",
+            "Metagenome or environmental sample from freshwater metagenome",
+            scientific_name="freshwater metagenome",
+        ),
+        meta("S3", "mock sample for coassembly lake water", scientific_name="freshwater metagenome"),
+        meta("S4", "lake sediment core", environmental_medium="lake sediment [ENVO:00000546]"),
+        meta(
+            "S5", "marine water", local_environmental_context="freshwater lake", scientific_name="freshwater metagenome"
+        ),
+    ]
+    rows = [
+        row("R1", "S1"),
+        row("R2", "S2"),
+        row("R3", "S3"),
+        row("R4", "S4"),
+        row("R5", "S5"),
+        row("M1", "S1;S5", study="P2", data_type="mag"),
+    ]
+    by = run_biome(metadata, rows, {"P1": "Freshwater lakes of Sweden", "P2": "freshwater metagenome MAGs"})
+    assert by["R1"]["tier"] == "A" and by["R1"]["curated_biome"] == CFG["catalogue_biome"]
+    assert "sample_metadata:env_local_scale:in:freshwater lake" in by["R1"]["evidence"]
+    assert "sample_metadata:text" not in by["R2"]["evidence"]  # a default title only repeats the taxon
+    assert "out:mock" not in by["R3"]["evidence"]  # ENA's co-assembly sample, no mock community
+    assert by["R4"]["tier"] == "D" and by["R4"]["flags"] == "excluded_envo"
+    assert by["R5"]["tier"] == "C" and by["R5"]["needs_curation"]  # a conflict
+    assert by["M1"]["tier"] == "C" and by["M1"]["needs_curation"]  # S1 is fine, but a co-assembly needs S5 too
+    assert "project_description:P2" not in by["M1"]["evidence"]  # the study only names the taxon

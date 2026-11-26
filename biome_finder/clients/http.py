@@ -10,6 +10,7 @@ import urllib.request
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from ..log import debug, info
 from ..models import Response
 
 CACHE_DIR = Path(os.environ.get("BIOME_FINDER_CACHE", "~/.cache/biome-finder")).expanduser()
@@ -35,7 +36,9 @@ def get(
     body = urllib.parse.urlencode(data).encode() if data else None
     cache = CACHE_DIR / hashlib.sha1(url.encode() + (body or b"")).hexdigest()
     if cache.exists() and time.time() - cache.stat().st_mtime < CACHE_MAX_AGE:
+        debug(f"cached {url}")
         return Response(200, cache.read_text())
+    debug(f"{'POST' if body else 'GET'} {url}")
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": USER_AGENT})
@@ -50,9 +53,11 @@ def get(
                 return Response(404, None)
             if e.code not in (429, 500, 502, 503, 504) or attempt == retries - 1:
                 raise
-        except urllib.error.URLError:
+            info(f"HTTP {e.code}, retrying in {2**attempt} s: {url}")
+        except urllib.error.URLError as e:
             if attempt == retries - 1:
                 raise
+            info(f"{e.reason}, retrying in {2**attempt} s: {url}")
         time.sleep(2**attempt)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache.write_text(text)
@@ -65,6 +70,7 @@ def download(url: str, retries: int = 5) -> Response[Path | None]:
     path = CACHE_DIR / "files" / url.rsplit("/", 1)[-1]
     if path.exists():
         return Response(200, path)
+    info(f"downloading {url} to {path} (once; later runs reuse it)")
     path.parent.mkdir(parents=True, exist_ok=True)
     part = path.with_suffix(path.suffix + ".part")
     for attempt in range(retries):

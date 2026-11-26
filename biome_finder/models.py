@@ -322,3 +322,15 @@ class NcbiTaxdump:
     merged: dict[str, str]  # old tax ID → current one (`merged.dmp`)
     deleted: frozenset[str]  # `delnodes.dmp`, among the requested IDs
     taxa: dict[str, NcbiTaxon]  # by current tax ID
+
+
+# --- OLS4 (https://www.ebi.ac.uk/ols4/api): ontology terms (ENVO) ---
+
+
+@dataclass(frozen=True)
+class OlsTerm:
+    """An ontology term with the names a submitter may write it as."""
+
+    obo_id: str  # e.g. ENVO:00000021
+    label: str
+    synonyms: tuple[str, ...]

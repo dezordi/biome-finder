@@ -24,7 +24,7 @@ from .constants import (
     METAGENOMIC_WGS,
     MIN_READS,
 )
-from .log import warn
+from .log import info, warn
 from .models import EnaAssembly, EnaBin, EnaMag, EnaRun, EnaSample, EnaSearch, MgnifyCatalogue
 
 Config = dict[str, Any]  # a biome YAML (biomes/<name>.yaml)
@@ -438,6 +438,7 @@ def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
         "catalogue_genomes": cat.unclustered_genome_count if cat else "",
     }
     run_host = host_filter(cfg)
+    info(f"{cfg['name']}: survey ({cfg['kingdom']}, catalogue {cfg.get('mgnify_catalogue') or 'none'})")
 
     scope = {}
     for t in KINGDOM_TAXA[cfg["kingdom"]]:
@@ -490,14 +491,22 @@ def survey_biome(cfg: Config) -> tuple[list[dict[str, Any]], list[Record], str]:
         for r in mags + contigs + runs:
             r["from_mgnify"] = r["study_accession"] in mgnify_studies
         per_taxon[taxon] = (taxid, mags, contigs, runs)
+        info(f"{cfg['name']}: {taxon} ({taxid}): {len(mags):,} MAGs, {len(contigs):,} assemblies, {len(runs):,} runs")
         all_mags += mags
         all_contigs += contigs
         all_runs += runs
     bins = mgnify_bins(cfg, scope, all_contigs + all_runs, cutoff)
+    info(f"{cfg['name']}: {len(bins):,} MGnify bins from this biome's samples")
     kingdom_evidence(cfg, all_mags + bins, all_contigs, all_runs)
-    for r in linked_assemblies(cfg, all_contigs, all_runs, mgnify_studies, cutoff):
+    info(
+        f"{cfg['name']}: kingdom evidence: {sum(r['kingdom_match'] for r in all_contigs):,} of "
+        f"{len(all_contigs):,} assemblies, {sum(r['kingdom_match'] for r in all_runs):,} of {len(all_runs):,} runs"
+    )
+    linked = linked_assemblies(cfg, all_contigs, all_runs, mgnify_studies, cutoff)
+    for r in linked:
         per_taxon[r["metagenome_taxon"]][2].append(r)
         all_contigs.append(r)
+    info(f"{cfg['name']}: checked by sample: {len(linked):,} more assemblies linked to samples on a route")
     base["catalogue_mags"] = catalogue_membership(cat, all_mags + bins)
     rows = [
         {
@@ -590,4 +599,5 @@ def run(biome_paths: Iterable[str], out_dir: str | Path) -> None:
         write_tsv(biome_dir / "records.tsv", RECORD_COLUMNS, records)
         write_tsv(biome_dir / "studies.tsv", STUDY_COLUMNS, studies(records))
     write_tsv(out / "survey.tsv", SURVEY_COLUMNS, rows)
+    info(f"wrote {out / 'survey.tsv'}; building the dashboard {out / 'report.html'}")
     report.write(out)

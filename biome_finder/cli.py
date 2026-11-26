@@ -1,13 +1,16 @@
 """biome-finder command line."""
 
 import click
+from . import log
 from . import search as search_mod
 from . import survey as survey_mod
 
 
 @click.group()
-def main() -> None:
+@click.option("-v", "--verbose", is_flag=True, help="Also log every HTTP request (cached or not).")
+def main(verbose: bool) -> None:
     """Find and organize public INSDC data for a target biome."""
+    log.setup(verbose)
 
 
 @main.command()
