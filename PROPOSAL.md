@@ -279,7 +279,7 @@ no resolved tax ID or name is stored:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `X` excluded |
 | `needs_curation` | bool (tier C, any conflict, or `data_type = unknown`) |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |
@@ -312,7 +312,7 @@ soon as the evidence is conclusive:
 
 | # | Action | Automated by | Base weight (to calibrate) |
 |---|---|---|---|
-| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic, not amplicon-only | rules | gate |
+| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/enrichment/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9 | rules | gate |
 | 1 | Third-party curated biome (MGnify study lineage, GOLD, Metalog) | lookup | 0.9 |
 | 2 | Structured sample metadata (ENVO `env_*`, `env_biome`, `isolation_source`, host, body site). ENA `env_tax:*`/`env_geo:*` tags are derived from the organism's taxonomy, not the sample, so they don't count (a sample can carry both `env_tax:marine` and `env_tax:freshwater`) | rules + term map | 0.8 when specific, 0.4 when generic, ~0 for `env_tax`/`env_geo` |
 | 3 | Consistency with sibling samples in the same project | rules | ± 0.1 modifier |

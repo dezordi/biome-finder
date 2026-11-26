@@ -15,6 +15,7 @@ from ..models import (
     EnaLinkedAnalysis,
     EnaLinkedWgs,
     EnaSample,
+    EnaSampleMetadata,
     EnaSearch,
     EnaStudy,
     EnaTaxon,
@@ -73,17 +74,27 @@ def search(request: EnaSearch, model: type[M]) -> Response[list[M]]:
     return Response(res.status, [from_row(model, r) for r in rows])
 
 
-def sample_hosts(accessions: Iterable[str]) -> Response[list[EnaSample]]:
-    """IDs and host of each sample. Primary IDs go through `includeAccessions`, which rejects
-    secondary (ERS/SRS/DRS) ones; those go through an OR query."""
+def samples(accessions: Iterable[str], model: type[M]) -> Response[list[M]]:
+    """Samples by primary or secondary ID, as `model`. Primary IDs go through `includeAccessions`,
+    which rejects secondary (ERS/SRS/DRS) ones; those go through an OR query."""
     accessions = set(accessions)
     primary = {a for a in accessions if a.startswith("SAM")}
-    responses = [search(EnaSearch("sample", accessions=tuple(b)), EnaSample) for b in batches(primary, 500)]
+    responses = [search(EnaSearch("sample", accessions=tuple(b)), model) for b in batches(primary, 500)]
     responses += [
-        search(EnaSearch("sample", " OR ".join(f'secondary_sample_accession="{a}"' for a in b)), EnaSample)
+        search(EnaSearch("sample", " OR ".join(f'secondary_sample_accession="{a}"' for a in b)), model)
         for b in batches(accessions - primary, 100)
     ]
     return Response(first_status(responses), [s for r in responses for s in r.data])
+
+
+def sample_hosts(accessions: Iterable[str]) -> Response[list[EnaSample]]:
+    """IDs and host of each sample."""
+    return samples(accessions, EnaSample)
+
+
+def sample_metadata(accessions: Iterable[str]) -> Response[list[EnaSampleMetadata]]:
+    """The descriptive fields of each sample (title, description, env_*, isolation source, …)."""
+    return samples(accessions, EnaSampleMetadata)
 
 
 def sample_assemblies(samples: Iterable[str], clause: str = "") -> Response[list[EnaLinkedWgs | EnaLinkedAnalysis]]:

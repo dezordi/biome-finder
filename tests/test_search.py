@@ -2,9 +2,9 @@ import csv
 
 import pytest
 
-from biome_finder import search
-from biome_finder.clients import ncbi
-from biome_finder.models import NCBI_RANKS, NcbiTaxdump, NcbiTaxon, Response
+from biome_finder import score, search
+from biome_finder.clients import ena, ncbi
+from biome_finder.models import NCBI_RANKS, EnaSampleMetadata, NcbiTaxdump, NcbiTaxon, Response
 
 
 def taxon(tax_id, name, rank, ancestors, **ranks):
@@ -31,6 +31,7 @@ DUMP = NcbiTaxdump(
 def taxdump(monkeypatch):
     monkeypatch.setattr(ncbi, "latest_taxdump", lambda: Response(200, "2026-11-01"))
     monkeypatch.setattr(ncbi, "taxdump", lambda release, ids: Response(200, DUMP))
+    monkeypatch.setattr(ena, "sample_metadata", lambda ids: Response(200, []))
 
 
 FIELDS = ["data_type", "accession", "study_accession", "sample_accession", "source_samples", "first_public"]
@@ -122,3 +123,55 @@ def test_taxonomy_is_resolved_and_genomes_out_of_scope_are_flagged():
     assert by["M_unknown"]["flags"] == "taxid_unknown"
     assert by["R1"]["flags"] == "" and by["R1"]["domain"] == ""  # no scope for runs
     assert by["R1"]["tax_lineage"] == "d__;k__;p__;c__;o__;f__;g__;s__freshwater metagenome"
+
+
+def meta(acc, title="", description="", **kw):
+    fields = dict.fromkeys(EnaSampleMetadata.__dataclass_fields__, "")
+    return EnaSampleMetadata(
+        **{**fields, "sample_accession": acc, "sample_title": title, "sample_description": description, **kw}
+    )
+
+
+@pytest.mark.parametrize(
+    "text, flags",
+    [  # real freshwater-water-prok sample texts (2026-11)
+        ("blank.extraction2 urban biome research facility", ["control"]),
+        ("GSC:MIxS MIMS:6.0 negative control home", ["control"]),
+        ("Overlying water from a 30-day control microcosm without apple snails.", []),  # an experiment's arm
+        ("mock sample for coassembly ErkenSummer", []),  # ENA's virtual co-assembly sample
+        ("mock community DNA standard", ["mock"]),
+        ("Synthetic microbial communities from Ohio, USA", ["synthetic"]),
+        ("shotgun sequenced culture enrichment of surface water microbiome", ["enrichment"]),
+        ("Enriched microbiome from surface water small river", ["enrichment"]),
+        ("Walnut Creek spiked with Pseudomonas putida & Escherichia coli", ["spiked"]),
+        ("Lake Erie surface water", []),
+    ],
+)
+def test_hard_filters(text, flags):
+    assert score.hard_flags(meta("S1", text)) == flags
+
+
+def test_sample_evidence_fills_reported_biome_and_sends_hard_filters_to_tier_x():
+    rows = [
+        {"record_accession": "M1", "sample_accession": "SA;SB", "flags": ""},
+        {"record_accession": "R1", "sample_accession": "SA", "flags": "low_reads"},
+        {"record_accession": "R2", "sample_accession": "SC", "flags": ""},
+    ]
+    metadata = [
+        meta(
+            "SA",
+            "lake water",
+            broad_scale_environmental_context="freshwater lake biome",
+            scientific_name="freshwater metagenome",
+        ),
+        meta("SB", "lake water", "spiked with E. coli", broad_scale_environmental_context="river biome"),
+        meta("SC", secondary_sample_accession="ERS9", environmental_medium="water"),
+    ]
+    search.sample_evidence(rows, metadata)
+    m1, r1, r2 = rows
+    assert m1["reported_biome"] == (
+        "env_broad_scale=freshwater lake biome | river biome; organism=freshwater metagenome"
+    )
+    assert m1["flags"] == "spiked" and m1["tier"] == "X"  # one source sample is enough
+    assert r1["flags"] == "low_reads" and "tier" not in r1
+    assert r2["reported_biome"] == "env_medium=water"

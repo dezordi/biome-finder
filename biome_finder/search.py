@@ -6,9 +6,10 @@ from typing import Any
 
 import yaml
 
-from .clients import ncbi
+from . import score
+from .clients import ena, ncbi
 from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS
-from .models import NcbiTaxdump, NcbiTaxon
+from .models import EnaSampleMetadata, NcbiTaxdump, NcbiTaxon
 from .survey import Config, write_tsv
 
 Row = dict[str, Any]  # one samples.tsv row (SAMPLES_COLUMNS)
@@ -50,6 +51,15 @@ SAMPLES_COLUMNS = [  # PROPOSAL.md §3.6; columns are added, never renamed
 ]
 KEPT_COLUMNS = ("curation_note", "decision", "destination", "local_path", "prepare_status")
 MIN_RUN_READS = 200_000  # a sample's reads are routed only if one of its runs reaches this
+REPORTED_BIOME = [  # (reported_biome key, ENA sample field)
+    ("env_broad_scale", "broad_scale_environmental_context"),
+    ("env_local_scale", "local_environmental_context"),
+    ("env_medium", "environmental_medium"),
+    ("isolation_source", "isolation_source"),
+    ("organism", "scientific_name"),
+    ("host", "host"),
+    ("body_site", "host_body_site"),
+]
 
 
 def survey_records(survey_dir: Path, name: str) -> list[dict[str, str]]:
@@ -146,6 +156,32 @@ def resolve_taxonomy(rows: list[Row], cfg: Config, dump: NcbiTaxdump) -> None:
         )
 
 
+def reported_biome(samples: list[EnaSampleMetadata]) -> str:
+    """The samples' biome fields as found, `key=value; …` (REPORTED_BIOME order, empty ones left
+    out); a co-assembly's samples that differ are `|`-joined."""
+    parts = []
+    for key, field in REPORTED_BIOME:
+        values = dict.fromkeys(v for s in samples if (v := getattr(s, field)))
+        if values:
+            parts.append(f"{key}={' | '.join(values)}")
+    return "; ".join(parts)
+
+
+def sample_evidence(rows: list[Row], metadata: list[EnaSampleMetadata]) -> None:
+    """Fill `reported_biome` from each row's samples (a genome's source samples), add the hard
+    filters their text matches to `flags` (score.HARD_FILTERS), and put rows carrying an
+    excluding flag in tier X. A genome is flagged if any of its source samples is."""
+    by_id = {i: s for s in metadata for i in s.ids}
+    for r in rows:
+        samples = [by_id[a] for a in r["sample_accession"].split(";") if a in by_id]
+        r["reported_biome"] = reported_biome(samples)
+        hard = dict.fromkeys(f for s in samples for f in score.hard_flags(s))
+        flags = [f for f in r["flags"].split(";") if f] + list(hard)
+        r["flags"] = ";".join(flags)
+        if score.EXCLUDING_FLAGS & set(flags):
+            r["tier"] = "X"
+
+
 def merge(old: list[Row], new: list[Row]) -> list[Row]:
     """New rows with the human and `prepare` columns of the old row of the same record. Old rows
     the new search no longer finds are kept unchanged, so no curation is lost."""
@@ -169,6 +205,8 @@ def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "
     if not dump:
         raise ValueError(f"NCBI taxdump release {release!r} not found in the archive")
     resolve_taxonomy(rows, cfg, dump)
+    samples = {a for r in rows for a in r["sample_accession"].split(";") if a}
+    sample_evidence(rows, ena.sample_metadata(samples).data)
     out = Path(out)
     old: list[Row] = []
     if out.exists():

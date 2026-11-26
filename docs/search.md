@@ -6,8 +6,9 @@ rows, and `prepare` turns the accepted ones into workflow inputs.
 
 ```{note}
 In development (milestone M2). This version builds the table from the survey records and
-merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI. Scoring,
-tiers and isolate genomes come next; their columns are already in the table, empty.
+merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI, each
+sample's reported biome, and the hard filters (tier X). Biome scoring, tiers A–C and isolate
+genomes come next; their columns are already in the table, empty.
 ```
 
 ## Usage
@@ -70,6 +71,34 @@ d__;k__;p__;c__;o__;f__;g__;s__freshwater metagenome
 The prefixes are `d` (domain; realm for viruses), `k` (kingdom), `p`, `c`, `o`, `f`, `g`, `s`.
 NCBI gives metagenomes the species rank only.
 
+## Sample metadata and hard filters
+
+`search` reads each sample's fields from ENA (title, description, isolation source, the MIxS
+`env_broad_scale` / `env_local_scale` / `env_medium`, organism, host, body site, coordinates).
+`reported_biome` lists the biome fields as found, `key=value; …`; for a co-assembled genome,
+values that differ between its source samples are `|`-joined:
+
+```text
+env_broad_scale=freshwater habitats; env_local_scale=lake; env_medium=water; organism=freshwater metagenome
+```
+
+The hard filters (curation action 0) match the sample's title, description, isolation source
+and env fields. A row matching one, or flagged `out_of_scope_taxon`, goes to tier `X`; a genome
+matches if any of its source samples does.
+
+| Flag | Matches | Not matched |
+|---|---|---|
+| `control` | technical controls: negative, blank, extraction, kit, reagent or no-template controls, NTC | an experiment's untreated arm ("control microcosm"), which is a real sample: the biome evidence decides it |
+| `mock` | mock communities | "mock sample for coassembly", ENA's virtual sample for a co-assembly |
+| `synthetic` | synthetic communities | |
+| `enrichment` | enrichments, enriched microbiomes or cultures | |
+| `spiked` | spiked samples, spike-ins | |
+
+The patterns were checked against freshwater-water-prok (2026-11): 961 runs, 114 MAGs and one
+assembly went to tier X, mostly enrichments (e.g. PRJNA1177841, "culture enrichment of surface
+water microbiome") and JGI's spiked Walnut Creek samples. Amplicon data and organelle genomes
+are not filtered yet.
+
 ## Re-running
 
 `search` merges by `record_accession`. It rewrites the automatic columns and keeps
@@ -92,7 +121,9 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `reported_biome` | The samples' biome fields as found in ENA |
+| `tier` | `X` for rows with a hard-filter or `out_of_scope_taxon` flag; A–C come with scoring |
 | `read_stats` | Runs: read count, layout, platform |
 | `first_public` | Date the record became public |
 | `curation_note`, `decision` | For the curator: `decision` is `keep` or `skip` and overrides the tier |

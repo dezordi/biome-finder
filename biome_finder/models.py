@@ -211,6 +211,32 @@ class EnaSample:
 
 
 @dataclass(frozen=True)
+class EnaSampleMetadata:
+    """A sample's descriptive fields (`sample`), the raw biome evidence `search` reads. ENA's
+    `environment_biome/feature/material` repeat the three MIxS env_* fields, so only those are
+    requested."""
+
+    sample_accession: str  # primary: SAMEA/SAMN/SAMD
+    secondary_sample_accession: str  # ERS/SRS/DRS
+    sample_title: str
+    sample_description: str
+    scientific_name: str  # the organism; a metagenome taxon for community samples
+    broad_scale_environmental_context: str  # MIxS env_broad_scale
+    local_environmental_context: str  # env_local_scale
+    environmental_medium: str  # env_medium
+    isolation_source: str
+    host: str
+    host_body_site: str
+    lat: str
+    lon: str
+    country: str
+
+    @property
+    def ids(self) -> list[str]:
+        return [a for a in (self.sample_accession, self.secondary_sample_accession) if a]
+
+
+@dataclass(frozen=True)
 class EnaStudy:
     """A study's accession and text (`study`)."""
 
