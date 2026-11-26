@@ -173,28 +173,43 @@ def study_items(
     return items
 
 
-def under(lineage: str, parent: str) -> bool:
-    """`lineage` is `parent` or one of its sub-lineages."""
-    return lineage == parent or lineage.startswith(parent + ":")
+def under(path: str, parent: str, sep: str = ":") -> bool:
+    """`path` is `parent` or one of its sub-paths."""
+    return path == parent or path.startswith(parent + sep)
+
+
+def tree_claim(path: str, targets: list[str], excludes: list[str], sep: str) -> tuple[str, float]:
+    """How a curated biome path relates to the config's: (`in` or `out`, specificity). Under one
+    of `targets` and none of `excludes`: in, 1. An ancestor of a target (e.g. `…:Freshwater` for
+    `…:Freshwater:Lake`) supports it only partly: in, its depth over the target's. Anything else,
+    excluded subtrees included: out, 1."""
+    if any(under(path, x, sep) for x in excludes):
+        return "out", 1.0
+    if any(under(path, t, sep) for t in targets):
+        return "in", 1.0
+    depth = len(path.split(sep))
+    partial = [depth / len(t.split(sep)) for t in targets if under(t, path, sep)]
+    return ("in", max(partial)) if partial else ("out", 1.0)
 
 
 def lineage_claim(lineage: str, cfg: Mapping[str, Any]) -> tuple[str, float]:
-    """How a curated biome lineage relates to the config: (`in` or `out`, specificity). It is
-    first mapped through `lineage_equivalents` (a lineage and its sub-lineages). Under one of
-    `mgnify_lineages` and none of `mgnify_lineages_exclude`: in, 1. An ancestor of a target
-    (e.g. `…:Freshwater` for `…:Freshwater:Lake`) supports it only partly: in, its depth over the
-    target's. Anything else, excluded subtrees included: out, 1."""
+    """tree_claim for an MGnify lineage against `mgnify_lineages` / `mgnify_lineages_exclude`,
+    after mapping it through `lineage_equivalents` (a lineage and its sub-lineages)."""
     for src, dst in (cfg.get("lineage_equivalents") or {}).items():
         if under(lineage, src):
             lineage = dst + lineage[len(src) :]
-    targets = cfg.get("mgnify_lineages") or []
-    if any(under(lineage, x) for x in cfg.get("mgnify_lineages_exclude") or []):
-        return "out", 1.0
-    if any(under(lineage, t) for t in targets):
-        return "in", 1.0
-    depth = len(lineage.split(":"))
-    partial = [depth / len(t.split(":")) for t in targets if under(t, lineage)]
-    return ("in", max(partial)) if partial else ("out", 1.0)
+    return tree_claim(lineage, cfg.get("mgnify_lineages") or [], cfg.get("mgnify_lineages_exclude") or [], ":")
+
+
+def gold_claim(path: str, cfg: Mapping[str, Any]) -> tuple[str, float]:
+    """tree_claim for a GOLD ecosystem path against `gold_ecosystems` / `gold_ecosystems_exclude`.
+    Trailing `Unclassified` levels say nothing, so they are dropped first."""
+    levels = path.split(" > ")
+    while levels and levels[-1] in ("Unclassified", ""):
+        levels.pop()
+    return tree_claim(
+        " > ".join(levels), cfg.get("gold_ecosystems") or [], cfg.get("gold_ecosystems_exclude") or [], " > "
+    )
 
 
 def third_party_items(source: str, lineage: str, cfg: Mapping[str, Any]) -> list[Evidence]:
@@ -204,6 +219,14 @@ def third_party_items(source: str, lineage: str, cfg: Mapping[str, Any]) -> list
         return []
     claim, specificity = lineage_claim(lineage, cfg)
     return [Evidence("third_party_biome", source, claim, round(specificity, 2), W_THIRD_PARTY, lineage)]
+
+
+def gold_items(gold_id: str, path: str, cfg: Mapping[str, Any]) -> list[Evidence]:
+    """Action 1: the sample's GOLD ecosystem as one evidence item, if the config has GOLD paths."""
+    if not path or not cfg.get("gold_ecosystems"):
+        return []
+    claim, specificity = gold_claim(path, cfg)
+    return [Evidence("third_party_biome", f"gold:{gold_id}", claim, round(specificity, 2), W_THIRD_PARTY, path)]
 
 
 def combine(items: list[Evidence], siblings: float = 0.0) -> tuple[float, bool]:

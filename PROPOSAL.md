@@ -110,6 +110,7 @@ envo_exclude:                        # subtrees removed (term + subclasses), che
   - ENVO:03000033                    # marine sediment
 gold_ecosystems:                     # GOLD 5-level paths (also used by awesome-mag)
   - "Environmental > Aquatic > Freshwater > Lake > Sediment"
+gold_ecosystems_exclude: []          # GOLD paths (and everything under them) removed
 metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
 keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor", "enrichment",
@@ -138,7 +139,7 @@ notes: "Surface and core sediments. Saline/soda lakes excluded."
 
 ```bash
 biome-finder search --biome biomes/<name>.yaml --survey survey/ --out samples.tsv \
-    [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] [--papers-dir papers/] [--llm] [--composition [all]]
+    [--gold goldData.xlsx] [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] [--papers-dir papers/] [--llm] [--composition [all]]
 ```
 
 **Re-running is safe.** If `samples.tsv` already exists, `search` merges by
@@ -164,7 +165,7 @@ the LLM key.
 | NCBI Taxonomy | Monthly `new_taxdump_YYYY-MM-01.zip` from `pub/taxonomy/taxdump_archive/` (`merged.dmp`, `delnodes.dmp`, lineages) | FTP |
 | MGnify API | Existing catalogues and their genomes (update dedup); studies with a curated MGnify biome lineage; MGnify-generated ERZ assemblies | `/metagenomics/api/v2/genomes/catalogues/` for catalogues (v1 lists outdated versions); `/metagenomics/api/v2/studies/` for the studies' curated biomes (action 1); `/metagenomics/api/v1/biomes/` to browse the lineage tree |
 | Metalog (EMBL) | Manually curated sample metadata, where available | Downloads |
-| JGI GOLD | Curated 5-level ecosystem classification of BioSamples | Public data export |
+| JGI GOLD | Curated 5-level ecosystem classification of BioSamples | Public data export ("Public Studies/Biosamples/SPs/APs/Organisms Excel"), downloaded by the curator from a browser (the page is behind a browser check) and passed as `--gold` |
 | Europe PMC | Paper metadata, open-access full text (Methods, Data availability), accession text-mining | REST API |
 | SPIRE + mag-provenance | Flags SPIRE bins and re-assemblies of the same source samples | [mag-provenance](https://github.com/EBI-Metagenomics/mag-provenance/tree/dev) |
 | Sandpiper (SingleM) | GTDB genus-level community profile per public run, for IndicPiper (§3.9) | `sandpiper.qut.edu.au/api/condensed_csv_with_extras/<run>?taxonomy_type=gtdb` |

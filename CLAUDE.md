@@ -76,7 +76,7 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[te
 # then run tools as .venv/bin/biome-finder / .venv/bin/python -m pytest
 biome-finder survey  --biomes biomes/*.yaml --out survey/   # survey.tsv, biomes/*/, report.html
 biome-finder search  --biome biomes/<name>.yaml --survey survey/ --out samples.tsv \
-                     [--llm] [--composition [all]] [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] \
+                     [--gold goldData.xlsx] [--llm] [--composition [all]] [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] \
                      [--papers-dir papers/]
 biome-finder prepare --samples samples.tsv --biome biomes/<name>.yaml --tiers A,B --out <dir>
 biome-finder link-assemblies --samples samples.tsv --miassembler-outdir <path> --out <dir>
@@ -191,7 +191,7 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
 ## External services
 
 - ENA Portal/Browser/xref, NCBI E-utilities, FTP and taxdump archive, MGnify API, Europe PMC,
-  GOLD exports, Sandpiper API (GTDB run profiles), MGnify analysis taxonomy files. Cache responses on disk (default `~/.cache/biome-finder/`, keyed by URL or
+  GOLD exports (downloaded by the curator: the page is behind a browser check, never bypass it), Sandpiper API (GTDB run profiles), MGnify analysis taxonomy files. Cache responses on disk (default `~/.cache/biome-finder/`, keyed by URL or
   accession).
 - Respect rate limits: NCBI allows 3 requests/s without an API key and 10 with one (via the
   `NCBI_API_KEY` env var). Use backoff on HTTP 429 and 5xx.
@@ -226,7 +226,8 @@ the test.
 
 ## Code style
 
-- Keep it small: stdlib first (`csv`, `json`), plus `click`, `requests` and `PyYAML`. The
+- Keep it small: stdlib first (`csv`, `json`), plus `click`, `requests`, `PyYAML` and `openpyxl`
+  (only to read the GOLD export). The
   optional extras are the LLM SDK and `pypdf`. Ask before adding any other dependency.
 - Reports: `report.py` only, with pandas, Panel and plotly. The survey report is one
   self-contained dashboard (`report.html`): Panel components (tabs, cards, `Number`

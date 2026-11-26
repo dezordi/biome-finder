@@ -55,10 +55,17 @@ def survey(biome_paths: tuple[str, ...], extra: tuple[str, ...], out: str) -> No
 @click.option(
     "--taxdump", default="", metavar="YYYY-MM-DD", help="NCBI taxonomy release of that month (default: the latest)."
 )
-def search(biome_path: str, survey_dir: str, out: str, since: str, taxdump: str) -> None:
+@click.option(
+    "--gold",
+    "gold_export",
+    default="",
+    type=click.Path(dir_okay=False),
+    help="GOLD data export (goldData.xlsx) for GOLD ecosystem evidence; see the search docs to download it.",
+)
+def search(biome_path: str, survey_dir: str, out: str, since: str, taxdump: str, gold_export: str) -> None:
     """Build samples.tsv for one biome from its survey records (merged into an existing one)."""
     try:
-        search_mod.run(biome_path, survey_dir, out, since, taxdump)
+        search_mod.run(biome_path, survey_dir, out, since, taxdump, gold_export)
     except ValueError as e:  # survey not run for this biome, or no such taxdump release
         raise click.ClickException(str(e)) from e
 

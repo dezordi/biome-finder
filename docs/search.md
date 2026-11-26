@@ -8,7 +8,7 @@ rows, and `prepare` turns the accepted ones into workflow inputs.
 In development (milestone M2). This version builds the table from the survey records and
 merges it with an existing `samples.tsv`, with the taxonomy resolved against NCBI, each
 sample's reported biome, the hard filters (tier D) and the rule-based biome score (curation
-actions 1–5, tiers A–C). GOLD ecosystems, coordinates and isolate genomes come next; their columns are already in the table, empty.
+actions 1–5, tiers A–C). Coordinates and isolate genomes come next; their columns are already in the table, empty.
 ```
 
 ## Usage
@@ -24,12 +24,9 @@ biome-finder search --biome biomes/<name>.yaml --survey survey/ --out samples.ts
 | `--survey` | Survey folder holding `biomes/<name>/records.tsv` (default `survey/`). Run [survey](survey.md) on the biome first. |
 | `--out` | The table (default `samples.tsv`). If it exists, the new search is merged into it. |
 | `--since` | Only records public on or after this date (`YYYY-MM-DD`), for catalogue updates. |
-| `-v` / `--verbose` | Before the command (`biome-finder -v search …`): also log every HTTP request, cached or not. |
+| `--gold` | The GOLD data export (`goldData.xlsx`), for GOLD ecosystem evidence; see [GOLD ecosystems](#gold-ecosystems). Without it, `search` runs without GOLD. |
 | `-v` / `--verbose` | Before the command (`biome-finder -v search …`): also log every HTTP request, cached or not. |
 | `--taxdump` | NCBI taxonomy release (`YYYY-MM-DD`): the monthly `new_taxdump_<YYYY-MM>-01.zip` of that month. Default: the latest. |
-
-Progress goes to stderr, one timestamped line per step: records read, taxonomy flags, samples
-found in ENA, hard-filter counts, ENVO terms expanded, tiers per data type, and the merge.
 
 Progress goes to stderr, one timestamped line per step: records read, taxonomy flags, samples
 found in ENA, hard-filter counts, ENVO terms expanded, tiers per data type, and the merge.
@@ -121,6 +118,7 @@ or other biome) or `excluded_envo`:
 | `third_party_biome` | the biome lineage MGnify's curators gave the study (API v2 `/studies/`), under `mgnify_lineages` and none of `mgnify_lineages_exclude` | in | 0.9 |
 | `third_party_biome` | an ancestor of a target lineage (e.g. `…:Freshwater` for `…:Freshwater:Lake`) | in, specificity = its depth over the target's (0.8) | 0.9 |
 | `third_party_biome` | any other lineage (`…:Wetlands:Bog`, `…:Freshwater:Sediment`) | out | 0.9 (a conflict) |
+| `third_party_biome` | the sample's GOLD ecosystem (`--gold`), against `gold_ecosystems` minus `gold_ecosystems_exclude`, the same way; trailing `Unclassified` levels are dropped first | in / out | 0.9 |
 | `sample_metadata` | an `env_*` field naming an `envo_include` term or one under it, by ENVO ID or exact name (label or synonym) | in | 0.8 |
 | `sample_metadata` | an `env_*` field naming an `envo_exclude` term or one under it | excluded_envo | tier D |
 | `sample_metadata` | a `keywords_include` word in the sample's text (title, description, isolation source, env fields) | in | 0.4 |
@@ -155,6 +153,29 @@ evaporation pond), so a value matches by ENVO ID first, then by exact label, the
 synonym; the strongest match decides between `envo_include` and `envo_exclude`, and a tie
 excludes.
 
+## GOLD ecosystems
+
+JGI's GOLD gives many BioSamples a curated five-level ecosystem path (e.g. `Environmental >
+Aquatic > Freshwater > Lake > Unclassified`). GOLD publishes it only as an Excel export, on a
+page that checks for a browser, so the curator downloads it once:
+
+1. Open <https://gold.jgi.doe.gov/downloads> in a browser (no login needed; the first visit
+   may show a short "Just a moment…" check).
+2. Download **Public Studies/Biosamples/SPs/APs/Organisms Excel** (about 240 MB,
+   `goldData.xlsx`). The other three files (SRA-based biome APs, GOLD CVs, the ecosystem
+   paths) aren't needed.
+3. Pass it to `search`: `--gold goldData.xlsx`. The file is git-ignored in the project folder.
+
+The first run reads the export (about three minutes) and caches its BioSample → ecosystem table
+in `~/.cache/biome-finder/files/gold-<key>.tsv`; later runs read the cache, until the file
+changes. A sequencing project links an NCBI BioSample to a GOLD Biosample (metagenomes) or
+Organism (isolates), which holds the path. Download a new export now and then: the page shows
+when it was last generated.
+
+In freshwater-water-prok (export of 2026-11-25), 10,406 of its 25,229 samples have a GOLD
+ecosystem, mostly `… > Freshwater > Lake` (5,909) and `… > River` (1,893). With it, MAGs and
+assemblies are 91% tier A, and runs 45% A, 33% C (from 31% A, 39% C without GOLD).
+
 ## Re-running
 
 `search` merges by `record_accession`. It rewrites the automatic columns and keeps
@@ -180,7 +201,7 @@ this version:
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
 | `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
-| `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>` |
+| `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>`, and the samples' GOLD ecosystems, `gold:<Gb or Go ID>:<path>`, `; `-joined |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |
 | `score` | The biome score, 0–100 (the worst source sample for a genome) |
 | `tier` | `A`, `B`, `C`, or `D` for rows with an excluding flag |

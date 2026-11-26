@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Organize INSDC sample/genome inputs for biome-specific genome catalogue workflows"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
-dependencies = ["click>=8", "PyYAML>=6", "pandas>=2", "plotly>=5.20", "panel>=1.4"]
+dependencies = ["click>=8", "PyYAML>=6", "pandas>=2", "plotly>=5.20", "panel>=1.4", "openpyxl>=3.1"]
 
 [project.optional-dependencies]
 test = ["pytest"]

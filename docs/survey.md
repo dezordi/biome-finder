@@ -22,10 +22,6 @@ biome-finder survey --biomes biomes/*.yaml --out survey/
 
 Progress goes to stderr: per biome, the records found per metagenome taxon, the MGnify bins,
 the kingdom evidence and the assemblies found by the check by sample.
-| `-v` / `--verbose` | Before the command (`biome-finder -v survey …`): also log every HTTP request, cached or not. |
-
-Progress goes to stderr: per biome, the records found per metagenome taxon, the MGnify bins,
-the kingdom evidence and the assemblies found by the check by sample.
 
 ## How it works
 

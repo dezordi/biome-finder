@@ -37,6 +37,25 @@ envo_exclude:  # an excluded term wins over an included one above it
   - ENVO:03600092  # artificial pond
 gold_ecosystems: 
   - "Environmental > Aquatic > Freshwater"
+gold_ecosystems_exclude:  # GOLD files these under Freshwater (export of 2026-11-25)
+  - "Environmental > Aquatic > Freshwater > Sediment"
+  - "Environmental > Aquatic > Freshwater > Lake > Sediment"
+  - "Environmental > Aquatic > Freshwater > River > Sediment"
+  - "Environmental > Aquatic > Freshwater > Pond > Sediment"
+  - "Environmental > Aquatic > Freshwater > Creek > Sediment"
+  - "Environmental > Aquatic > Freshwater > Lentic > Sediment"
+  - "Environmental > Aquatic > Freshwater > Reservoir > Sediment"
+  - "Environmental > Aquatic > Freshwater > Drainage ditch > Sediment"
+  - "Environmental > Aquatic > Freshwater > Canal > Sediment"
+  - "Environmental > Aquatic > Freshwater > Groundwater"
+  - "Environmental > Aquatic > Freshwater > Drinking water"
+  - "Environmental > Aquatic > Freshwater > Tap water"
+  - "Environmental > Aquatic > Freshwater > Water tank"
+  - "Environmental > Aquatic > Freshwater > Sterile water"
+  - "Environmental > Aquatic > Freshwater > Wetlands"
+  - "Environmental > Aquatic > Freshwater > Ice"
+  - "Environmental > Aquatic > Freshwater > Glacier"
+  - "Environmental > Aquatic > Freshwater > Subglacial lake"
 metagenome_taxa: 
   - "freshwater metagenome"
   - "lake water metagenome"

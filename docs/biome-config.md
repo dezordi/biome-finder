@@ -27,6 +27,7 @@ design in `PROPOSAL.md`.
 | [`envo_include`](#envo-include-and-envo-exclude) | — | biome evidence (action 2) | — |
 | [`envo_exclude`](#envo-include-and-envo-exclude) | — | rules a sample out | — |
 | [`gold_ecosystems`](#gold-ecosystems) | — | biome evidence (action 1) | — |
+| [`gold_ecosystems_exclude`](#gold-ecosystems) | — | removes GOLD subtrees | — |
 | [`metagenome_taxa`](#metagenome-taxa) | **the ENA searches** | candidate records, weak evidence (action 5) | — |
 | [`keywords_include`](#keywords-include-and-keywords-exclude) | — | text evidence (actions 2, 4) | — |
 | [`keywords_exclude`](#keywords-include-and-keywords-exclude) | — | conflicts, hard filters | — |
@@ -184,7 +185,14 @@ To see which terms samples of the biome really use, look at the ENA sample field
 GOLD ecosystem paths, five levels from Ecosystem to Specific Ecosystem, e.g.
 `Environmental > Aquatic > Freshwater > Lake > Sediment`. In `search`, a GOLD classification
 of the sample is curated biome evidence (action 1); awesome-mag seed collections use the
-same paths.
+same paths. A path counts with everything under it.
+
+`gold_ecosystems_exclude` removes subtrees, as `mgnify_lineages_exclude` does for MGnify.
+GOLD files some out-of-scope samples under a broad type: under `Environmental > Aquatic >
+Freshwater` it puts `Sediment`, `Groundwater`, `Drinking water`, `Wetlands` and `Ice`, and
+sediment again one level down (`… > Lake > Sediment`, `… > River > Sediment`). To see which
+subtypes a type holds, list the paths of the samples in the export, or use GOLD's "5-Level
+Ecosystem Classification Paths" download.
 
 **Where to look:** browse the five levels of the
 [GOLD ecosystem classification](https://gold.jgi.doe.gov/ecosystem_classification), also on

@@ -9,10 +9,10 @@ import yaml
 from . import score
 from collections import Counter, defaultdict
 
-from .clients import ena, mgnify, ncbi, ols
+from .clients import ena, gold, mgnify, ncbi, ols
 from .log import counts, info
 from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS, SAMPLE_ID
-from .models import EnaSampleMetadata, MgnifyStudy, NcbiTaxdump, NcbiTaxon
+from .models import EnaSampleMetadata, GoldBiosample, MgnifyStudy, NcbiTaxdump, NcbiTaxon
 from .score import Evidence, Terms
 from .survey import Config, write_tsv
 
@@ -258,6 +258,7 @@ def biome_evidence(
     include: Terms,
     exclude: Terms,
     mgnify_studies: dict[str, MgnifyStudy] | None = None,
+    gold_samples: dict[str, GoldBiosample] | None = None,
 ) -> None:
     """Score each row (actions 1-5, score.py) and fill `evidence`, `score`, `tier`,
     `needs_curation` and `curated_biome`. The sample is the unit: each of a row's samples is
@@ -267,17 +268,19 @@ def biome_evidence(
     has a `keywords_exclude` word is flagged `off_biome_keyword` (a conflict, so tier C unless
     another flag excludes it), so the reason shows next to the hard filters; tier D from the hard
     filters stays. `mgnify_studies` (by ENA study ID) gives the study's curated MGnify biome
-    (action 1), also written to `third_party_biome`."""
-    mgnify_studies = mgnify_studies or {}
+    (action 1), also written to `third_party_biome`; `gold_samples` (by BioSample) each sample's
+    GOLD ecosystem, likewise."""
+    mgnify_studies, gold_samples = mgnify_studies or {}, gold_samples or {}
     kw_in, kw_out = score.keyword(cfg.get("keywords_include") or []), score.keyword(cfg.get("keywords_exclude") or [])
     taxa = {t.lower() for t in cfg.get("metagenome_taxa") or []}
     by_id = {i: s for s in metadata for i in s.ids}
-    items = {
-        a: score.sample_items(by_id[a], include, exclude, kw_in, kw_out, taxa)
-        for r in rows
-        for a in r["sample_accession"].split(";")
-        if a in by_id
-    }
+    items = {}
+    for a in {a for r in rows for a in r["sample_accession"].split(";") if a}:
+        its = score.sample_items(by_id[a], include, exclude, kw_in, kw_out, taxa) if a in by_id else []
+        if a in gold_samples:
+            its = score.gold_items(gold_samples[a].gold_id, gold_samples[a].ecosystem_path, cfg) + its
+        if its:
+            items[a] = its
     lean = siblings(rows, items)
     study_items = {s: score.study_items(s, t, kw_in, kw_out, taxa) for s, t in study_texts.items()}
     for s in {r["study_accession"] for r in rows} & set(mgnify_studies):
@@ -292,13 +295,19 @@ def biome_evidence(
         flags = [f for f in r["flags"].split(";") if f]
         if any(e.claim == "excluded_envo" for e in found) and "excluded_envo" not in flags:
             flags.append("excluded_envo")
-        off_biome = any(e.action == "sample_metadata" and e.claim == "out" for e in found)
-        if off_biome and "off_biome_keyword" not in flags:
+        off_keyword = any(e.action == "sample_metadata" and e.claim == "out" for e in found)
+        if off_keyword and "off_biome_keyword" not in flags:
             flags.append("off_biome_keyword")
         r["flags"] = ";".join(flags)
         r["evidence"] = "; ".join(str(e) for e in found)
         listed = mgnify_studies.get(r["study_accession"])
-        r["third_party_biome"] = f"mgnify:{listed.accession}:{listed.lineage}" if listed and listed.lineage else ""
+        third = [f"mgnify:{listed.accession}:{listed.lineage}"] if listed and listed.lineage else []
+        third += [
+            f"gold:{g.gold_id}:{g.ecosystem_path}"
+            for a in r["sample_accession"].split(";")
+            if (g := gold_samples.get(a))
+        ]
+        r["third_party_biome"] = "; ".join(dict.fromkeys(third))
         r["score"] = value
         r["tier"] = "D" if score.EXCLUDING_FLAGS & set(flags) else score.tier(value, conflict)
         r["needs_curation"] = r["tier"] == "C"  # conflicts land there; tier D is excluded, not curated
@@ -316,10 +325,12 @@ def merge(old: list[Row], new: list[Row]) -> list[Row]:
     return merged + list(by_acc.values())
 
 
-def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "", taxdump: str = "") -> None:
+def run(
+    biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "", taxdump: str = "", gold_export: str = ""
+) -> None:
     """Write `out` (samples.tsv) for one biome config, merged into `out` if it exists. `taxdump`
     (YYYY-MM-DD) picks the monthly NCBI taxonomy release of that month; the default is the
-    latest."""
+    latest. `gold_export` is the GOLD data export the curator downloaded (docs/search.md)."""
     with open(biome_path) as f:
         cfg = yaml.safe_load(f)
     name = cfg["name"]
@@ -361,7 +372,19 @@ def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "
         f"{name}: {len(in_mgnify):,} of {len(studies):,} studies have an MGnify biome: "
         f"{counts(Counter(by_ena[s].lineage for s in in_mgnify))}"
     )
-    biome_evidence(rows, cfg, metadata, texts, include, exclude, by_ena)
+    gold_samples: dict[str, GoldBiosample] = {}
+    if gold_export:
+        listed = {g.biosample_accession: g for g in gold.biosamples(gold_export).data}
+        gold_samples = {
+            a: listed[a] for a in samples | {m for r in rows for m in r["sample_accession"].split(";")} if a in listed
+        }
+        info(
+            f"{name}: {len(gold_samples):,} samples have a GOLD ecosystem: "
+            f"{counts(Counter(' > '.join(g.ecosystem_path.split(' > ')[:4]) for g in gold_samples.values()))}"[:600]
+        )
+    elif cfg.get("gold_ecosystems"):
+        info(f"{name}: no --gold export given, so no GOLD evidence")
+    biome_evidence(rows, cfg, metadata, texts, include, exclude, by_ena, gold_samples)
     info(f"{name}: biome flags: {flag_counts(rows, ('excluded_envo', 'off_biome_keyword'))}")
     for data_type, tiers in sorted(tier_counts(rows).items()):
         info(f"{name}: {data_type}: " + ", ".join(f"tier {t} {tiers.get(t, 0):,}" for t in "ABCD"))

@@ -343,3 +343,16 @@ class OlsTerm:
     obo_id: str  # e.g. ENVO:00000021
     label: str
     synonyms: tuple[str, ...]
+
+
+# --- JGI GOLD: the public data export (goldData.xlsx), downloaded by the curator ---
+
+
+@dataclass(frozen=True)
+class GoldBiosample:
+    """A BioSample's GOLD ecosystem: from a sequencing project's NCBI BioSample to its GOLD
+    Biosample (metagenomes) or Organism (isolates)."""
+
+    biosample_accession: str  # SAMN/SAMEA/SAMD
+    gold_id: str  # Gb… or Go…
+    ecosystem_path: str  # "Environmental > Aquatic > Freshwater > Lake > Unclassified"

@@ -63,6 +63,7 @@ envo_exclude:                        # subtrees removed (term + subclasses), che
   - ENVO:03000033                    # marine sediment
 gold_ecosystems:                     # GOLD 5-level paths
   - "Environmental > Aquatic > Freshwater > Lake > Sediment"
+gold_ecosystems_exclude: []          # GOLD paths (and everything under them) removed
 metagenome_taxa: ["freshwater sediment metagenome"]
 keywords_include: ["lake sediment", "lacustrine sediment"]
 keywords_exclude: ["marine", "estuar", "wastewater", "bioreactor", "enrichment",

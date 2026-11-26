@@ -276,7 +276,7 @@ def test_biome_evidence_scores_samples_and_genomes_take_their_worst_source_sampl
     assert "sample_metadata:env_local_scale:in:freshwater lake" in by["R1"]["evidence"]
     assert "sample_metadata:text" not in by["R2"]["evidence"]  # a default title only repeats the taxon
     assert "out:mock" not in by["R3"]["evidence"]  # ENA's co-assembly sample, no mock community
-    assert by["R4"]["tier"] == "D" and by["R4"]["flags"] == "excluded_envo"
+    assert by["R4"]["tier"] == "D" and "excluded_envo" in by["R4"]["flags"].split(";")
     assert by["R5"]["tier"] == "C" and by["R5"]["needs_curation"]  # a conflict
     assert by["R5"]["flags"] == "off_biome_keyword"  # the reason, visible
     assert by["M1"]["tier"] == "C" and by["M1"]["needs_curation"]  # S1 is fine, but a co-assembly needs S5 too
@@ -338,3 +338,53 @@ def test_virtual_co_assembly_samples_are_replaced_by_their_members(monkeypatch):
 )
 def test_data_type_evidence(rec, evidence):
     assert search.data_type_evidence(rec) == evidence
+
+
+GOLD_CFG = {
+    "gold_ecosystems": ["Environmental > Aquatic > Freshwater"],
+    "gold_ecosystems_exclude": ["Environmental > Aquatic > Freshwater > Lake > Sediment"],
+}
+
+
+@pytest.mark.parametrize(
+    "path, claim",
+    [
+        ("Environmental > Aquatic > Freshwater > Lake > Unclassified", ("in", 1.0)),
+        (
+            "Environmental > Aquatic > Freshwater > Unclassified > Unclassified",
+            ("in", 1.0),
+        ),  # Unclassified says nothing
+        ("Environmental > Aquatic > Freshwater > Lake > Sediment", ("out", 1.0)),
+        ("Environmental > Aquatic > Unclassified > Unclassified > Unclassified", ("in", 0.67)),  # an ancestor
+        ("Environmental > Aquatic > Marine > Coastal > Unclassified", ("out", 1.0)),
+    ],
+)
+def test_gold_claim(path, claim):
+    got = score.gold_claim(path, GOLD_CFG)
+    assert (got[0], round(got[1], 2)) == claim
+
+
+def test_gold_export_maps_biosamples_to_ecosystems(tmp_path, monkeypatch):
+    import openpyxl
+    from biome_finder.clients import gold, http
+
+    wb = openpyxl.Workbook()
+    levels = ["ECOSYSTEM", "ECOSYSTEM CATEGORY", "ECOSYSTEM TYPE", "ECOSYSTEM SUBTYPE", "SPECIFIC ECOSYSTEM"]
+    for kind, gid, path in [
+        ("Biosample", "Gb1", ["Environmental", "Aquatic", "Freshwater", "Lake", None]),
+        ("Organism", "Go1", ["Environmental", "Aquatic", "Marine", "Coastal", "Unclassified"]),
+    ]:
+        ws = wb.create_sheet(kind)
+        ws.append([f"{kind.upper()} GOLD ID", *(f"{kind.upper()} {lv}" for lv in levels)])
+        ws.append([gid, *path])
+    ws = wb.create_sheet("Sequencing Project")
+    ws.append(["NCBI BIOSAMPLE ACCESSION", "BIOSAMPLE GOLD ID", "ORGANISM GOLD ID"])
+    ws.append(["SAMN1", "Gb1", None])
+    ws.append(["SAMN2", None, "Go1"])  # an isolate
+    ws.append([None, "Gb1", None])  # no BioSample: skipped
+    wb.save(tmp_path / "gold.xlsx")
+    monkeypatch.setattr(gold, "CACHE_DIR", tmp_path / "cache")
+    for _ in range(2):  # the second call reads the cache
+        found = {g.biosample_accession: g for g in gold.biosamples(tmp_path / "gold.xlsx").data}
+        assert found["SAMN1"].ecosystem_path == "Environmental > Aquatic > Freshwater > Lake > "
+        assert found["SAMN2"].gold_id == "Go1" and len(found) == 2
