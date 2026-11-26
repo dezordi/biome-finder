@@ -41,8 +41,6 @@ keywords_exclude:
   - "wastewater"
   - "groundwater"
   - "drinking water"
-  - "mesocosm"
-  - "microcosm"
   - "spiked"
   - "mock"
   - "synthetic"

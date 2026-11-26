@@ -18,8 +18,6 @@ keywords_include:
 keywords_exclude: 
   - "cave water"
   - "marine"
-  - "mesocosm"
-  - "microcosm"
   - "spiked"
   - "mock"
   - "synthetic"

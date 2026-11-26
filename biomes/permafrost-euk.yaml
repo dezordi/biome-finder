@@ -19,8 +19,6 @@ keywords_include:
   - "active layer"
 keywords_exclude: 
   - "thermokarst lake water"
-  - "mesocosm"
-  - "microcosm"
   - "spiked"
   - "mock"
   - "synthetic"

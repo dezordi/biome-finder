@@ -67,7 +67,8 @@ Each failure is a `skip`; record the reason.
 - Control, mock or synthetic metagenome. In mixed studies these are *assembled* but never
   binned.
 - Spiked sample (organisms added), or otherwise manipulated in a way we don't want. An
-  enrichment culture is fine if no organisms were added while culturing: check what was done
+  enrichment culture, another culture or a micro/mesocosm is fine if no organisms were added
+  and no treatment applied (e.g. a microcosm's untreated control arm): check what was done
   (sample metadata, paper methods) before excluding it.
 - Amplicon-only data (not WGS).
 - Off-biome material, e.g. a host conflict for an environmental biome, or barn faeces for a
