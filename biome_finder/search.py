@@ -266,7 +266,8 @@ def biome_evidence(
     co-assembled genome is accepted only if all its source samples are. A sample with an env_*
     term under `envo_exclude` is flagged `excluded_envo` and goes to tier D; one whose own text
     has a `keywords_exclude` word is flagged `off_biome_keyword` (a conflict, so tier C unless
-    another flag excludes it), so the reason shows next to the hard filters; tier D from the hard
+    another flag excludes it), so the reason shows next to the hard filters; a sample whose own
+    evidence points only to another biome (score.off_biome) is flagged `off_biome`, tier D; tier D from the hard
     filters stays. `mgnify_studies` (by ENA study ID) gives the study's curated MGnify biome
     (action 1), also written to `third_party_biome`; `gold_samples` (by BioSample) each sample's
     GOLD ecosystem, likewise."""
@@ -298,6 +299,8 @@ def biome_evidence(
         off_keyword = any(e.action == "sample_metadata" and e.claim == "out" for e in found)
         if off_keyword and "off_biome_keyword" not in flags:
             flags.append("off_biome_keyword")
+        if any(score.off_biome(its) for its in samples if its) and "off_biome" not in flags:
+            flags.append("off_biome")
         r["flags"] = ";".join(flags)
         r["evidence"] = "; ".join(str(e) for e in found)
         listed = mgnify_studies.get(r["study_accession"])
@@ -391,7 +394,7 @@ def run(
     elif cfg.get("gold_ecosystems"):
         info(f"{name}: no --gold export given, so no GOLD evidence")
     biome_evidence(rows, cfg, metadata, texts, include, exclude, by_ena, gold_samples)
-    info(f"{name}: biome flags: {flag_counts(rows, ('excluded_envo', 'off_biome_keyword'))}")
+    info(f"{name}: biome flags: {flag_counts(rows, ('excluded_envo', 'off_biome', 'off_biome_keyword'))}")
     for data_type, tiers in sorted(tier_counts(rows).items()):
         info(f"{name}: {data_type}: " + ", ".join(f"tier {t} {tiers.get(t, 0):,}" for t in "ABCD"))
     info(

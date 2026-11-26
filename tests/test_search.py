@@ -400,3 +400,19 @@ def test_enrichment_goes_to_curation_but_spiked_samples_are_excluded():
     by = run_biome(metadata, rows)
     assert by["R1"]["flags"] == "enrichment" and by["R1"]["tier"] == "C" and by["R1"]["needs_curation"]
     assert by["R2"]["flags"] == "spiked" and by["R2"]["tier"] == "D"
+
+
+def test_a_sample_whose_own_evidence_points_only_elsewhere_is_off_biome():
+    metadata = [
+        meta("S1", "river sediment core", scientific_name="freshwater sediment metagenome"),  # SAMN07376294-like
+        meta(
+            "S2",
+            "river sediment core",
+            local_environmental_context="freshwater lake",
+            scientific_name="freshwater metagenome",
+        ),
+    ]
+    rows = [row("M1", "S1", data_type="mag"), row("M2", "S2", data_type="mag")]
+    by = run_biome(metadata, rows, {"P1": "Freshwater rivers"})  # the study's own text doesn't rescue S1
+    assert by["M1"]["tier"] == "D" and "off_biome" in by["M1"]["flags"].split(";")
+    assert by["M2"]["tier"] == "C" and "off_biome" not in by["M2"]["flags"].split(";")  # mixed: a curator decides

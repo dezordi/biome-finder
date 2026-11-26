@@ -24,7 +24,7 @@ HARD_FILTERS = {
 }
 CO_ASSEMBLY_SAMPLE = re.compile(r"\bmock sample for co-?assembly\b", re.I)  # ENA's text for a virtual sample
 CURATION_FLAGS = {"enrichment"}  # any of these sends a row to tier C, whatever its score
-EXCLUDING_FLAGS = {*HARD_FILTERS, "out_of_scope_taxon", "excluded_envo"} - CURATION_FLAGS  # → tier D
+EXCLUDING_FLAGS = {*HARD_FILTERS, "out_of_scope_taxon", "excluded_envo", "off_biome"} - CURATION_FLAGS  # → tier D
 
 
 def sample_text(s: EnaSampleMetadata) -> str:
@@ -247,6 +247,14 @@ def combine(items: list[Evidence], siblings: float = 0.0) -> tuple[float, bool]:
     score = pooled("in") * (1 - pooled("out")) + SIBLINGS * siblings
     conflict = any(e.claim == "out" and e.weight >= CONFLICT for e in items)
     return round(100 * min(max(score, 0.0), 1.0)), conflict
+
+
+def off_biome(sample_items: list[Evidence]) -> bool:
+    """The sample's own evidence (its metadata, organism and GOLD ecosystem: not its study's)
+    points to another biome, at conflict weight, and none of it points to the config's: the
+    sample belongs to another biome, whatever its study says, since a study can mix biomes."""
+    out = any(e.claim in ("out", "excluded_envo") and e.weight >= CONFLICT for e in sample_items)
+    return out and not any(e.claim == "in" for e in sample_items)
 
 
 def tier(score: float, conflict: bool) -> str:

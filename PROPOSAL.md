@@ -280,7 +280,7 @@ no resolved tax ID or name is stored:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
 | `needs_curation` | bool: tier C (where any conflict and `data_type = unknown` land); tier D rows are excluded, not curated |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |
@@ -333,7 +333,10 @@ items with weight ≥ 0.6 set `needs_curation`, whatever the score. Action 3 add
 the share of the study's samples whose own metadata points in, minus the share pointing out.
 A keyword match skips the metagenome taxon names, which default sample titles repeat and
 action 5 already counts. An exclude keyword in a study's text weighs 0.3, below the conflict
-threshold: study descriptions name other habitats in passing. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
+threshold: study descriptions name other habitats in passing. A sample whose own evidence
+(metadata, organism, GOLD) points to another biome at conflict weight, with none pointing to
+the target, is `off_biome` → tier D: the study's evidence doesn't rescue it, since a study can
+mix biomes. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
 **D** hard-filter fail. When unsure, exclude: that's guideline A.1 ("if you are not
 convinced… leave it out").
 

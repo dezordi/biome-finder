@@ -143,6 +143,13 @@ freshwater metagenome"), and ENA's "mock sample for coassembly".
 - **Tier**: `A` ≥ 80, `B` 60–79, `C` below 60 or with a conflict (an opposing item of weight
   ≥ 0.6), `D` with an excluding flag. `needs_curation` is tier C (tier D is excluded, not curated);
   `curated_biome` is the config's `catalogue_biome` for tiers A and B.
+- **Off-biome samples** go to tier `D` (`off_biome`): the sample's own evidence (its metadata,
+  organism and GOLD ecosystem, not its study's) points to another biome at conflict weight
+  (≥ 0.6), and none of it points to the config's. A study's text or MGnify biome doesn't
+  rescue a sample, since a study can mix biomes; a sample with evidence both ways stays in
+  tier C. In freshwater-water-prok this excludes 1,346 MAGs whose source samples are salt or
+  soda lakes, ocean, wastewater or sediment (e.g. SAMN07376294: GOLD `… > River > Sediment`,
+  organism `freshwater sediment metagenome`).
 - **Genomes** take their worst source sample, since a co-assembled genome is accepted only if
   all its source samples are.
 
@@ -201,7 +208,7 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome` (tier D: the sample's own evidence points only to another biome), `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
 | `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>`, and the samples' GOLD ecosystems, `gold:<Gb or Go ID>:<path>`, `; `-joined |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |

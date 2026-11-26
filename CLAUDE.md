@@ -95,7 +95,8 @@ These come from PROPOSAL.md Appendix A. Never relax them silently.
   all its source samples are accepted.
 - Exclude: controls, mock and synthetic metagenomes, spiked samples, organelle genomes,
   out-of-scope taxa, amplicon-only data, and off-biome material (host conflict, barn faeces
-  for a gut biome, and so on). An enrichment culture is not excluded automatically: it is
+  for a gut biome, and so on; a sample whose own evidence points only to another biome is
+  `off_biome`, whatever its study says). An enrichment culture is not excluded automatically: it is
   fine if no organisms were added while culturing, so it goes to curation.
 - Mixed-biome read studies: assemble **all** WGS runs of the study, controls and off-biome
   runs included (`assembly_only`), but bin only the accepted runs. Skip the study
