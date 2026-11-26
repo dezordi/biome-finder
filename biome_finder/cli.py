@@ -1,6 +1,7 @@
 """biome-finder command line."""
 
 import click
+from . import search as search_mod
 from . import survey as survey_mod
 
 
@@ -33,6 +34,26 @@ def survey(biome_paths: tuple[str, ...], extra: tuple[str, ...], out: str) -> No
     try:
         survey_mod.run(biome_paths + extra, out)
     except ValueError as e:  # invalid biome config
+        raise click.ClickException(str(e)) from e
+
+
+@main.command()
+@click.option("--biome", "biome_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--survey",
+    "survey_dir",
+    type=click.Path(file_okay=False),
+    default="survey",
+    show_default=True,
+    help="Survey folder holding biomes/<name>/records.tsv.",
+)
+@click.option("--out", type=click.Path(dir_okay=False), default="samples.tsv", show_default=True)
+@click.option("--since", default="", metavar="YYYY-MM-DD", help="Only records public on or after this date.")
+def search(biome_path: str, survey_dir: str, out: str, since: str) -> None:
+    """Build samples.tsv for one biome from its survey records (merged into an existing one)."""
+    try:
+        search_mod.run(biome_path, survey_dir, out, since)
+    except ValueError as e:  # survey not run for this biome
         raise click.ClickException(str(e)) from e
 
 

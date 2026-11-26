@@ -137,7 +137,7 @@ notes: "Surface and core sediments. Saline/soda lakes excluded."
 ## 3. Step 1 — The table: `search`
 
 ```bash
-biome-finder search --biome biomes/<name>.yaml --out samples.tsv \
+biome-finder search --biome biomes/<name>.yaml --survey survey/ --out samples.tsv \
     [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] [--papers-dir papers/] [--llm] [--composition [all]]
 ```
 
@@ -145,6 +145,10 @@ biome-finder search --biome biomes/<name>.yaml --out samples.tsv \
 `record_accession`. It refreshes the automatic columns and keeps the human ones
 (`decision`, human-written `curation_note`). The normal loop is: search → curate → add
 PDFs → search again.
+
+**Input.** `search` starts from the biome's survey records
+(`survey/biomes/<name>/records.tsv`: MAGs, MGnify bins, assemblies and runs with evidence for
+the config's kingdom) and adds isolate genomes, which `survey` doesn't search.
 
 ### 3.1 Data sources (programmatic)
 

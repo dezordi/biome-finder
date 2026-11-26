@@ -1,5 +1,4 @@
-# DRAFT generated for the M1 survey (2026-11-19). Scope not yet decided by the user:
-# refine with the define-biome skill before using it for search.
+# Scope decided 2026-11-26: lakes, rivers and ponds in one catalogue, as configured below.
 name: freshwater-water-prok
 kingdom: prokaryotes               # prokaryotes | eukaryotes: MGnify catalogue type (pipeline --kingdom)
 mgnify_catalogue: ""
@@ -59,4 +58,4 @@ ncbi_wgs_terms: []
 min_study_yield: 0.3
 indicpiper_habitats: 
   - "freshwater water"
-notes: "DRAFT for survey. Scope to decide: lakes + rivers together or separate; ponds/reservoirs; groundwater excluded. Lentic/Lotic/Pond :Sediment subtrees excluded (freshwater-sediment). glacier lake metagenome (Ice:Glacial lake) not included."
+notes: "Lakes, rivers and ponds in one catalogue (2026-11-26); groundwater excluded. Lentic/Lotic/Pond :Sediment subtrees excluded (freshwater-sediment). glacier lake metagenome (Ice:Glacial lake) not included."

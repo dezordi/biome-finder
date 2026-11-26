@@ -260,8 +260,8 @@ def test_routes_each_sample_enters_at_its_most_processed_data(monkeypatch):
 
     monkeypatch.setattr(ena, "studies", ok([]))
     monkeypatch.setattr(ena, "derived_from", ok({}))
-    monkeypatch.setattr(ena, "sample_hosts", ok([]))
-    genomes = [{"study_accession": "G", "sample_accession": "M1", "source_samples": "S_genome"}]
+    monkeypatch.setattr(ena, "sample_hosts", ok([sample("S_genome", "ERS1")]))
+    genomes = [{"study_accession": "G", "sample_accession": "M1", "source_samples": "ERS1"}]
     contigs = [{"study_accession": "P", "sample_accession": s} for s in ("S_genome", "S_asm")]
     runs = [
         {"study_accession": "P", "sample_accession": s, "read_count": n}
@@ -271,6 +271,7 @@ def test_routes_each_sample_enters_at_its_most_processed_data(monkeypatch):
     assert [r["route"] for r in contigs] == ["covered", "bin"]
     assert [r["route"] for r in runs] == ["covered", "covered", "assemble", ""]
     assert [r["covered_by"] for r in contigs] == ["G", ""]  # the study holding the genome
+    assert genomes[0]["source_samples"] == "S_genome"  # derived from's secondary ID, as the primary one
 
 
 def test_catalogue_membership_matches_accession_or_sample(monkeypatch):

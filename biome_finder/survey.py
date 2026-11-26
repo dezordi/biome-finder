@@ -287,7 +287,8 @@ def study_kingdom(text: str, kingdom: str) -> str:
 def genome_samples(genomes: list[Record]) -> dict[str, set[str]]:
     """Source samples (`derived from`) of MAGs and bins, under both their primary and secondary
     IDs, each mapped to the studies of the genomes made from it. Fills `source_samples` on
-    genomes that lack it."""
+    genomes that lack it, and rewrites it with primary IDs (SAMEA/SAMN/SAMD), the ones assemblies
+    and runs carry: `derived from` mostly gives secondary ones (ERS/SRS)."""
     origin = ena.derived_from(g["sample_accession"] for g in genomes if not g.get("source_samples")).data
     for g in genomes:
         if not g.get("source_samples"):
@@ -296,10 +297,15 @@ def genome_samples(genomes: list[Record]) -> dict[str, set[str]]:
     for g in genomes:
         for s in filter(None, g["source_samples"].split(";")):
             studies_of[s].add(g["study_accession"])
-    for sample in ena.sample_hosts(set(studies_of)).data:
+    samples = ena.sample_hosts(set(studies_of)).data
+    primary = {i: s.sample_accession for s in samples for i in s.ids}
+    for sample in samples:
         linked = set().union(*(studies_of.get(i, set()) for i in sample.ids))
         for i in sample.ids:
             studies_of[i] = linked
+    for g in genomes:
+        src = filter(None, g["source_samples"].split(";"))
+        g["source_samples"] = ";".join(dict.fromkeys(primary.get(s, s) for s in src))
     return dict(studies_of)
 
 

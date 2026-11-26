@@ -48,7 +48,8 @@ To regenerate the figure: `python docs/img/pipeline_overview.py docs/img/pipelin
 
 ## Status
 
-Early development. Only [survey](survey.md) is implemented; `search`, `prepare` and
+Early development. [survey](survey.md) is implemented; [search](search.md) is in development
+(it builds the table from the survey records, without scoring yet); `prepare` and
 `link-assemblies` are planned.
 
 ## Installation
@@ -75,4 +76,5 @@ sphinx-build -b html docs docs/_build/html
 
 biome-config
 survey
+search
 ```

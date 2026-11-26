@@ -75,7 +75,7 @@ duplicate them here.
 uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[test]"
 # then run tools as .venv/bin/biome-finder / .venv/bin/python -m pytest
 biome-finder survey  --biomes biomes/*.yaml --out survey/   # survey.tsv, biomes/*/, report.html
-biome-finder search  --biome biomes/<name>.yaml --out samples.tsv \
+biome-finder search  --biome biomes/<name>.yaml --survey survey/ --out samples.tsv \
                      [--llm] [--composition [all]] [--since YYYY-MM-DD] [--taxdump YYYY-MM-DD] \
                      [--papers-dir papers/]
 biome-finder prepare --samples samples.tsv --biome biomes/<name>.yaml --tiers A,B --out <dir>

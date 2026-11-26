@@ -4,7 +4,7 @@
 any curation: MAGs, metagenome assemblies, read runs and the genomes MGnify produced. ENA is
 part of INSDC, so runs and WGS genomes submitted to NCBI or DDBJ are expected included (see [Limitations](#limitations)).
 
-MGnify is used for context (existing catalogues and their genomes, and samples per biome lineage).
+MGnify is used for context (existing catalogues and their genomes).
 Use the survey to decide which biomes are worth building a catalogue for, and whether an existing
 MGnify catalogue has enough new data to justify an update.
 
