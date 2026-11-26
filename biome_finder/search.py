@@ -263,7 +263,9 @@ def biome_evidence(
     `needs_curation` and `curated_biome`. The sample is the unit: each of a row's samples is
     scored on its own metadata plus the row's study, and the row takes its worst sample, since a
     co-assembled genome is accepted only if all its source samples are. A sample with an env_*
-    term under `envo_exclude` is flagged `excluded_envo` and goes to tier D; tier D from the hard
+    term under `envo_exclude` is flagged `excluded_envo` and goes to tier D; one whose own text
+    has a `keywords_exclude` word is flagged `off_biome_keyword` (a conflict, so tier C unless
+    another flag excludes it), so the reason shows next to the hard filters; tier D from the hard
     filters stays. `mgnify_studies` (by ENA study ID) gives the study's curated MGnify biome
     (action 1), also written to `third_party_biome`."""
     mgnify_studies = mgnify_studies or {}
@@ -290,6 +292,9 @@ def biome_evidence(
         flags = [f for f in r["flags"].split(";") if f]
         if any(e.claim == "excluded_envo" for e in found) and "excluded_envo" not in flags:
             flags.append("excluded_envo")
+        off_biome = any(e.action == "sample_metadata" and e.claim == "out" for e in found)
+        if off_biome and "off_biome_keyword" not in flags:
+            flags.append("off_biome_keyword")
         r["flags"] = ";".join(flags)
         r["evidence"] = "; ".join(str(e) for e in found)
         listed = mgnify_studies.get(r["study_accession"])
@@ -357,6 +362,7 @@ def run(biome_path: str, survey_dir: str | Path, out: str | Path, since: str = "
         f"{counts(Counter(by_ena[s].lineage for s in in_mgnify))}"
     )
     biome_evidence(rows, cfg, metadata, texts, include, exclude, by_ena)
+    info(f"{name}: biome flags: {flag_counts(rows, ('excluded_envo', 'off_biome_keyword'))}")
     for data_type, tiers in sorted(tier_counts(rows).items()):
         info(f"{name}: {data_type}: " + ", ".join(f"tier {t} {tiers.get(t, 0):,}" for t in "ABCD"))
     info(

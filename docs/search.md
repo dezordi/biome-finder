@@ -124,7 +124,7 @@ or other biome) or `excluded_envo`:
 | `sample_metadata` | an `env_*` field naming an `envo_include` term or one under it, by ENVO ID or exact name (label or synonym) | in | 0.8 |
 | `sample_metadata` | an `env_*` field naming an `envo_exclude` term or one under it | excluded_envo | tier D |
 | `sample_metadata` | a `keywords_include` word in the sample's text (title, description, isolation source, env fields) | in | 0.4 |
-| `sample_metadata` | a `keywords_exclude` word in the sample's text | out | 0.6 (a conflict) |
+| `sample_metadata` | a `keywords_exclude` word in the sample's text | out | 0.6 (a conflict), flagged `off_biome_keyword` |
 | `project_description` | a `keywords_include` word in the study's title or description | in | 0.6 |
 | `project_description` | a `keywords_exclude` word there | out | 0.3: study texts name other habitats in passing |
 | `metagenome_name` | the sample's organism is one of `metagenome_taxa` | in | 0.3: often a default |
@@ -178,7 +178,7 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
 | `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>` |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |

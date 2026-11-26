@@ -279,7 +279,7 @@ no resolved tax ID or name is stored:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
 | `needs_curation` | bool: tier C (where any conflict and `data_type = unknown` land); tier D rows are excluded, not curated |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |

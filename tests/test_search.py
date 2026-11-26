@@ -278,6 +278,7 @@ def test_biome_evidence_scores_samples_and_genomes_take_their_worst_source_sampl
     assert "out:mock" not in by["R3"]["evidence"]  # ENA's co-assembly sample, no mock community
     assert by["R4"]["tier"] == "D" and by["R4"]["flags"] == "excluded_envo"
     assert by["R5"]["tier"] == "C" and by["R5"]["needs_curation"]  # a conflict
+    assert by["R5"]["flags"] == "off_biome_keyword"  # the reason, visible
     assert by["M1"]["tier"] == "C" and by["M1"]["needs_curation"]  # S1 is fine, but a co-assembly needs S5 too
     assert "project_description:P2" not in by["M1"]["evidence"]  # the study only names the taxon
 
