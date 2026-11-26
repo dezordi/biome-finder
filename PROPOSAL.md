@@ -280,7 +280,7 @@ no resolved tax ID or name is stored:
 | `tier` | `A` auto-accept · `B` accept + spot-check · `C` needs curation · `D` excluded |
 | `needs_curation` | bool: tier C (where any conflict and `data_type = unknown` land); tier D rows are excluded, not curated |
 | `evidence` | Ordered `action:source:claim` items, e.g. `sample_metadata:ENVO:00000546:lake sediment; paper_methods:PMC123:"cores were taken from…"` |
-| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `spiked`, `amplicon_only`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
+| `flags` | `control`, `synthetic`, `mock`, `enrichment`, `culture`, `spiked`, `virome`, `single_cell`, `amplicon_only`, `sample_low_reads`, `single_end`, `low_reads`, `long_read`, `organelle`, `out_of_scope_taxon`, `off_biome`, `off_biome_keyword`, `taxid_deleted`, `taxid_unknown`, `no_assembly`, `duplicate`, `spire_bin`, `same_study_mag_and_bin`, `in_existing_catalogue`, `host_conflict`, `composition_conflict` |
 | `read_stats` | runs, layout, platform, min/max/mean reads (for `reads` and `contigs`) |
 | `first_public` | Date (for incremental catalogue updates) |
 | `curation_note` | Free text, written by the LLM or a human, in the style of the "Manual Inspection" column |
@@ -313,7 +313,7 @@ soon as the evidence is conclusive:
 
 | # | Action | Automated by | Base weight (to calibrate) |
 |---|---|---|---|
-| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell: flagged `enrichment`, tier C | rules | gate |
+| 0 | **Hard filters**: public in INSDC, data available, in-scope taxon, not organelle, not control/mock/synthetic/spiked, not amplicon-only. Controls are technical ones (negative, blank, extraction, kit); an experiment's untreated arm is a real sample left to actions 1–9. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell: flagged `enrichment` (or `culture`), tier C. Amplicon libraries (strategy AMPLICON, or selection PCR), samples with no run of 200k reads, flow-sorted single cells and viromes (sample or study text) go to tier D | rules | gate |
 | 1 | Third-party curated biome (MGnify study lineage, GOLD, Metalog) | lookup | 0.9 |
 | 2 | Structured sample metadata (ENVO `env_*`, `env_biome`, `isolation_source`, host, body site). ENA `env_tax:*`/`env_geo:*` tags are derived from the organism's taxonomy, not the sample, so they don't count (a sample can carry both `env_tax:marine` and `env_tax:freshwater`) | rules + term map | 0.8 when specific, 0.4 when generic, ~0 for `env_tax`/`env_geo` |
 | 3 | Consistency with sibling samples in the same project | rules | ± 0.1 modifier |
@@ -335,8 +335,8 @@ A keyword match skips the metagenome taxon names, which default sample titles re
 action 5 already counts. An exclude keyword in a study's text weighs 0.3, below the conflict
 threshold: study descriptions name other habitats in passing. A sample whose own evidence
 (metadata, organism, GOLD) points to another biome at conflict weight, with none pointing to
-the target, is `off_biome` → tier D: the study's evidence doesn't rescue it, since a study can
-mix biomes. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
+the target at that weight, is `off_biome` → tier D: the study's evidence doesn't rescue it,
+since a study can mix biomes, and neither does a generic keyword or the default metagenome name. Tiers: **A** ≥ 80 with no conflicts, **B** 60–79, **C** < 60 or any conflict,
 **D** hard-filter fail. When unsure, exclude: that's guideline A.1 ("if you are not
 convinced… leave it out").
 

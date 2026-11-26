@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from .clients import ena, gold, mgnify, ncbi, ols
 from .log import counts, info
 from .constants import EXCLUDED_TAXA, KINGDOM_TAXA, LONG_READ_PLATFORMS, SAMPLE_ID
-from .models import EnaSampleMetadata, GoldBiosample, MgnifyStudy, NcbiTaxdump, NcbiTaxon
+from .models import EnaRunLibrary, EnaSampleMetadata, GoldBiosample, MgnifyStudy, NcbiTaxdump, NcbiTaxon
 from .score import Evidence, Terms
 from .survey import Config, write_tsv
 
@@ -134,6 +134,7 @@ def to_row(r: dict[str, str]) -> Row:
         "flags": ";".join(flags(r)),
         "read_stats": f"{r['read_count']} reads; {r['library_layout']}; {r['instrument_platform']}" if reads else "",
         "first_public": r["first_public"],
+        "read_count": int(r["read_count"] or 0),  # for run_flags; not a samples.tsv column
     }
 
 
@@ -187,6 +188,32 @@ def reported_biome(samples: list[EnaSampleMetadata]) -> str:
         if values:
             parts.append(f"{key}={' | '.join(values)}")
     return "; ".join(parts)
+
+
+def run_flags(rows: list[Row], libraries: list[EnaRunLibrary]) -> None:
+    """Flags from each run's library and its sample's runs: `amplicon_only` when the library is
+    amplicon (strategy AMPLICON, or selection PCR: amplicon data the survey's WGS/OTHER query
+    lets through), and `sample_low_reads` when none of the sample's runs reaches MIN_RUN_READS,
+    so its reads can't be routed (CLAUDE.md). Both send the row to tier D. The library also goes
+    to `data_type_evidence`."""
+    lib = {x.run_accession: x for x in libraries}
+    best: dict[str, int] = defaultdict(int)
+    reads = [r for r in rows if r["data_type"] == "reads"]
+    for r in reads:
+        best[r["sample_accession"]] = max(best[r["sample_accession"]], r.get("read_count", 0))
+    for r in reads:
+        flags = [f for f in r["flags"].split(";") if f]
+        x = lib.get(r["record_accession"])
+        if x:
+            r["data_type_evidence"] = (
+                f"ena.library_source=METAGENOMIC; ena.library_strategy={x.library_strategy}; "
+                f"ena.library_selection={x.library_selection}"
+            )
+            if x.library_strategy == "AMPLICON" or x.library_selection == "PCR":
+                flags.append("amplicon_only")
+        if best[r["sample_accession"]] < MIN_RUN_READS:
+            flags.append("sample_low_reads")
+        r["flags"] = ";".join(flags)
 
 
 def expand_co_assemblies(rows: list[Row], metadata: list[EnaSampleMetadata]) -> list[EnaSampleMetadata]:
@@ -320,6 +347,18 @@ def biome_evidence(
         r["curated_biome"] = cfg.get("catalogue_biome", "") if r["tier"] in ("A", "B") else ""
 
 
+def study_flags(rows: list[Row], study_texts: dict[str, str]) -> None:
+    """`virome` for the rows of a study whose title or description says it sequenced the viral
+    fraction: a virome's sample often carries only the default metagenome title (e.g. the Yangtze
+    River virome, PRJNA672207). In freshwater-water-prok every study that names it is a virome or
+    a cell-free fraction; a study mixing viromes with cellular metagenomes would lose those too."""
+    viral = {s for s, t in study_texts.items() if score.HARD_FILTERS["virome"].search(t)}
+    for r in rows:
+        flags = [f for f in r["flags"].split(";") if f]
+        if r["study_accession"] in viral and "virome" not in flags:
+            r["flags"] = ";".join([*flags, "virome"])
+
+
 def merge(old: list[Row], new: list[Row]) -> list[Row]:
     """New rows with the human and `prepare` columns of the old row of the same record. Old rows
     the new search no longer finds are kept unchanged, so no curation is lost."""
@@ -354,6 +393,11 @@ def run(
     resolve_taxonomy(rows, cfg, dump)
     info(f"{name}: taxonomy flags: {flag_counts(rows, ('out_of_scope_taxon', 'taxid_deleted', 'taxid_unknown'))}")
 
+    runs = [r["record_accession"] for r in rows if r["data_type"] == "reads"]
+    info(f"{name}: libraries of {len(runs):,} runs from ENA")
+    run_flags(rows, ena.run_libraries(runs).data)
+    info(f"{name}: run flags: {flag_counts(rows, ('amplicon_only', 'sample_low_reads'))}")
+
     samples = {a for r in rows for a in r["sample_accession"].split(";") if a}
     info(f"{name}: sample metadata for {len(samples):,} samples from ENA")
     metadata = ena.sample_metadata(samples).data
@@ -369,6 +413,8 @@ def run(
     studies = {r["study_accession"] for r in rows}
     info(f"{name}: titles and descriptions of {len(studies):,} studies from ENA")
     texts = {s.study_accession: s.text for s in ena.studies(studies).data}
+    study_flags(rows, texts)
+    info(f"{name}: studies of the viral fraction: {flag_counts(rows, ('virome',))}")
     include, exclude = envo_terms(cfg.get("envo_include") or []), envo_terms(cfg.get("envo_exclude") or [])
     info(
         f"{name}: ENVO from OLS: {len(cfg.get('envo_include') or [])} include terms → {len(include.ids):,} with "

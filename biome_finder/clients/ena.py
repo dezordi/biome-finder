@@ -14,6 +14,7 @@ from ..models import (
     M,
     EnaLinkedAnalysis,
     EnaLinkedWgs,
+    EnaRunLibrary,
     EnaSample,
     EnaSampleMetadata,
     EnaSearch,
@@ -86,6 +87,12 @@ def samples(accessions: Iterable[str], model: type[M]) -> Response[list[M]]:
         for b in batches(accessions - primary, 100)
     ]
     return Response(first_status(responses), [s for r in responses for s in r.data])
+
+
+def run_libraries(accessions: Iterable[str]) -> Response[list[EnaRunLibrary]]:
+    """The library strategy and selection of each run, 500 runs per request."""
+    responses = [search(EnaSearch("read_run", accessions=tuple(b)), EnaRunLibrary) for b in batches(accessions, 500)]
+    return Response(first_status(responses), [r for res in responses for r in res.data])
 
 
 def sample_hosts(accessions: Iterable[str]) -> Response[list[EnaSample]]:

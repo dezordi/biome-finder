@@ -197,6 +197,16 @@ class EnaRun:
 
 
 @dataclass(frozen=True)
+class EnaRunLibrary:
+    """How a run's library was made (`read_run`): amplicon data hides under strategy OTHER with
+    a PCR selection, which the survey's WGS/OTHER query lets through."""
+
+    run_accession: str
+    library_strategy: str  # WGS, OTHER, AMPLICON, …
+    library_selection: str  # RANDOM, PCR, size fractionation, …
+
+
+@dataclass(frozen=True)
 class EnaSample:
     """A sample's IDs and host (`sample`)."""
 

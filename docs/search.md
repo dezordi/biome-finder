@@ -102,6 +102,15 @@ matches if any of its source samples does.
 | `synthetic` | synthetic communities | |
 | `enrichment` | enrichments, enriched microbiomes or cultures: **tier C, not D**. An enrichment culture is fine if no organisms were added while culturing, which only a curator can tell | |
 | `spiked` | spiked samples, spike-ins | |
+| `virome` | the viral fraction: virome, virion, virus-like particles (VLP), viral fraction or metagenome. Also matched in the study's title and description, since a virome's sample often has only a default title (e.g. the Yangtze River virome, PRJNA672207); a study mixing viromes and cellular metagenomes would lose the latter too | "viral genome information" |
+| `single_cell` | JGI's "Sorted cell/s from …" samples: single-cell (SAG) data, excluded by default | |
+| `culture` | a culture ("non-axenic culture", "cell culture"): **tier C**, like an enrichment, which also stands for it | "culture-independent" |
+
+Runs get two more flags from their ENA library and their sample, both tier D: `amplicon_only`
+when the library strategy is AMPLICON or its selection is PCR (amplicon data that the survey's
+WGS/OTHER query lets through: e.g. the Earth Microbiome Project runs, OTHER/PCR with under
+150k reads), and `sample_low_reads` when none of the sample's runs reaches 200,000 reads, so
+its reads can't be routed. The library also goes to `data_type_evidence`.
 
 The patterns were checked against freshwater-water-prok (2026-11): 380 rows are spiked (mostly
 JGI's Walnut Creek samples, "spiked with Pseudomonas putida & Escherichia coli"), 45 technical
@@ -145,9 +154,11 @@ freshwater metagenome"), and ENA's "mock sample for coassembly".
   `curated_biome` is the config's `catalogue_biome` for tiers A and B.
 - **Off-biome samples** go to tier `D` (`off_biome`): the sample's own evidence (its metadata,
   organism and GOLD ecosystem, not its study's) points to another biome at conflict weight
-  (≥ 0.6), and none of it points to the config's. A study's text or MGnify biome doesn't
-  rescue a sample, since a study can mix biomes; a sample with evidence both ways stays in
-  tier C. In freshwater-water-prok this excludes 1,346 MAGs whose source samples are salt or
+  (≥ 0.6), and none of it points to the config's at that weight. A study's text or MGnify
+  biome doesn't rescue a sample, since a study can mix biomes, and neither does a generic
+  keyword or the default metagenome name (e.g. GOLD `… > Lake > Sediment` against "freshwater"
+  in the isolation source). A strong item both ways, such as an ENVO term against GOLD, is a
+  conflict: tier C. In freshwater-water-prok this excludes 1,346 MAGs whose source samples are salt or
   soda lakes, ocean, wastewater or sediment (e.g. SAMN07376294: GOLD `… > River > Sediment`,
   organism `freshwater sediment metagenome`).
 - **Genomes** take their worst source sample, since a co-assembled genome is accepted only if
@@ -185,6 +196,21 @@ In freshwater-water-prok (export of 2026-11-25), 10,406 of its 25,229 samples ha
 ecosystem, mostly `… > Freshwater > Lake` (5,909) and `… > River` (1,893). With it, MAGs and
 assemblies are 91% tier A, and runs 45% A, 34% C (from 31% A, 39% C without GOLD).
 
+## Benchmark
+
+`benchmark/freshwater-water-prok_benchmark150.tsv` (local, git-ignored, like the curated files
+below) holds 150 rows drawn from the freshwater
+`samples.tsv` (stratified by tier and data type, at most four per study; seed 20261126), with
+the tool's predictions apart in `…_benchmark150_tool.tsv`, so curators work blind. They were
+curated with the curate-sample skill (`curated_freshwater-water-prok.tsv`) and, 40 of them, by
+hand (`curated_freshwater-water-prok-filipe.tsv`). On 2026-11-26, against the skill's 150:
+tier A precision 47/47, tier A+B 64/67, tier D 64/64 skips, tier C 19/150 (13%), no kept record
+in tier D, and data type 150/150 (SAGs as `single_cell`). The three A/B rows a curator skipped
+lack the evidence in their own metadata: a sample from a mesocosm study that doesn't say so, a
+salmon aquaculture environment with no sample description, and a co-culture whose sample names
+only the cyanobacterium and the inoculum. The 40 curated by hand agree with the skill's decisions on all 40 (after review), with
+tier A 12/12 and tier D 20/20.
+
 ## Re-running
 
 `search` merges by `record_accession`. It rewrites the automatic columns and keeps
@@ -208,7 +234,7 @@ this version:
 | `tax_lineage` | The eight NCBI ranks, `d__…;k__…;p__…;c__…;o__…;f__…;g__…;s__…`, empty after the prefix where there is no taxon at that rank |
 | `domain` | `prokaryotes` or `eukaryotes` (the config's `kingdom` values), from the resolved lineage; empty for metagenomes |
 | `taxdump_date` | The release used (`YYYY-MM-01`) |
-| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome` (tier D: the sample's own evidence points only to another biome), `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
+| `flags` | `in_existing_catalogue` (already in the MGnify catalogue), the hard filters, `excluded_envo`, `off_biome` (tier D: the sample's own evidence points only to another biome), `amplicon_only` and `sample_low_reads` (runs, tier D), `single_cell` (tier D), `culture` (tier C), `off_biome_keyword` (the sample's own text has a `keywords_exclude` word: a conflict, tier C unless another flag excludes the row), `out_of_scope_taxon`, `taxid_deleted`, `taxid_unknown`, and for runs `long_read`, `single_end`, `low_reads` (fewer than 200,000 reads) |
 | `reported_biome` | The samples' biome fields as found in ENA |
 | `third_party_biome` | The study's MGnify biome, `mgnify:<MGYS>:<lineage>`, and the samples' GOLD ecosystems, `gold:<Gb or Go ID>:<path>`, `; `-joined |
 | `curated_biome` | The config's `catalogue_biome`, for tiers A and B |

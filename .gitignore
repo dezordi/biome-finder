@@ -12,3 +12,7 @@ papers/
 docs/_build/
 survey/
 goldData*.xlsx
+
+# benchmark work in progress: kept local, not versioned
+benchmark/*_benchmark*.tsv
+benchmark/curated_freshwater-water-prok*.tsv

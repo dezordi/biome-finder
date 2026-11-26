@@ -21,10 +21,25 @@ HARD_FILTERS = {
     "synthetic": re.compile(r"\bsynthetic\b", re.I),
     "enrichment": re.compile(r"\benrichments?\b|\benriched (?:microbiome|culture|communit)", re.I),
     "spiked": re.compile(r"\bspiked?\b|\bspike-?ins?\b", re.I),
+    "virome": re.compile(  # the viral fraction (virions, VLPs): no cellular genomes to recover
+        r"\bviromes?\b|\bviri?ons?\b|\bvirus-like particles?\b|\bVLPs?\b"
+        r"|\bviral (?:fraction|particles?|concentrates?|metagenomes?)\b",
+        re.I,
+    ),
+    "single_cell": re.compile(r"\bsorted cells?\b|\bsorted cell/s\b", re.I),  # JGI's "Sorted cell/s from …": SAG data
+    # a culture, not the community itself; "culture-independent" says the opposite (NARMS)
+    "culture": re.compile(r"\bcultur(?:e|es|ed|ing)\b(?![- ]independent)|\bnon-?axenic\b", re.I),
 }
 CO_ASSEMBLY_SAMPLE = re.compile(r"\bmock sample for co-?assembly\b", re.I)  # ENA's text for a virtual sample
-CURATION_FLAGS = {"enrichment"}  # any of these sends a row to tier C, whatever its score
-EXCLUDING_FLAGS = {*HARD_FILTERS, "out_of_scope_taxon", "excluded_envo", "off_biome"} - CURATION_FLAGS  # → tier D
+CURATION_FLAGS = {"enrichment", "culture"}  # any of these sends a row to tier C, whatever its score
+EXCLUDING_FLAGS = {  # any of these sends a row to tier D
+    *HARD_FILTERS,
+    "out_of_scope_taxon",
+    "excluded_envo",
+    "off_biome",
+    "amplicon_only",  # a run's library is amplicon (strategy AMPLICON, or selection PCR)
+    "sample_low_reads",  # none of the sample's runs reaches 200k reads, so its reads can't be routed
+} - CURATION_FLAGS
 
 
 def sample_text(s: EnaSampleMetadata) -> str:
@@ -42,9 +57,11 @@ def sample_text(s: EnaSampleMetadata) -> str:
 
 
 def hard_flags(s: EnaSampleMetadata) -> list[str]:
-    """The HARD_FILTERS a sample's text matches."""
+    """The HARD_FILTERS a sample's text matches. An enrichment is a culture, so `enrichment` alone
+    stands for both."""
     text = sample_text(s)
-    return [flag for flag, pattern in HARD_FILTERS.items() if pattern.search(text)]
+    found = [flag for flag, pattern in HARD_FILTERS.items() if pattern.search(text)]
+    return [f for f in found if f != "culture" or "enrichment" not in found]
 
 
 # Actions 1-5: biome evidence. Base weights are PROPOSAL.md §3.7's, still to calibrate.
@@ -251,10 +268,14 @@ def combine(items: list[Evidence], siblings: float = 0.0) -> tuple[float, bool]:
 
 def off_biome(sample_items: list[Evidence]) -> bool:
     """The sample's own evidence (its metadata, organism and GOLD ecosystem: not its study's)
-    points to another biome, at conflict weight, and none of it points to the config's: the
-    sample belongs to another biome, whatever its study says, since a study can mix biomes."""
-    out = any(e.claim in ("out", "excluded_envo") and e.weight >= CONFLICT for e in sample_items)
-    return out and not any(e.claim == "in" for e in sample_items)
+    points to another biome at conflict weight, and none of it points to the config's at that
+    weight: the sample belongs to another biome, whatever its study says, since a study can mix
+    biomes. A generic keyword or a default metagenome name doesn't rescue it (e.g. GOLD
+    `… > Lake > Sediment` against "freshwater" in the isolation source); a strong item both
+    ways (an ENVO term against GOLD) is a conflict for a curator."""
+    out = max((e.weight for e in sample_items if e.claim in ("out", "excluded_envo")), default=0.0)
+    in_ = max((e.weight for e in sample_items if e.claim == "in"), default=0.0)
+    return out >= CONFLICT > in_
 
 
 def tier(score: float, conflict: bool) -> str:

@@ -33,6 +33,7 @@ def taxdump(monkeypatch):
     monkeypatch.setattr(ncbi, "taxdump", lambda release, ids: Response(200, DUMP))
     monkeypatch.setattr(ena, "sample_metadata", lambda ids: Response(200, []))
     monkeypatch.setattr(ena, "studies", lambda ids: Response(200, []))
+    monkeypatch.setattr(ena, "run_libraries", lambda ids: Response(200, []))
     monkeypatch.setattr(ols, "with_descendants", lambda term: Response(200, []))
 
 
@@ -82,7 +83,7 @@ def test_search_keeps_kingdom_records_and_curation_on_rerun(tmp_path):
     rows = read(out)
     assert set(rows) == {"R1", "R3", "M1"}
     assert list(next(iter(rows.values()))) == search.SAMPLES_COLUMNS
-    assert rows["R3"]["flags"] == "single_end;low_reads"
+    assert rows["R3"]["flags"] == "single_end;low_reads;sample_low_reads"
     assert rows["R1"]["reported_tax_id"] == "1" and rows["R1"]["tax_lineage"].endswith("s__freshwater metagenome")
     assert rows["M1"]["sample_accession"] == "SA;SB" and rows["M1"]["flags"] == "in_existing_catalogue"
 
@@ -147,6 +148,14 @@ def meta(acc, title="", description="", **kw):
         ("Enriched microbiome from surface water small river", ["enrichment"]),
         ("Walnut Creek spiked with Pseudomonas putida & Escherichia coli", ["spiked"]),
         ("Lake Erie surface water", []),
+        ("Sorted cell/s from McNutts Creek water", ["single_cell"]),
+        ("Lake Biwa virion metagenome (2016-2017), October hypolimnion", ["virome"]),
+        ("Epilimnion water (VLP virome) shore of Caldonazzo Lake", ["virome"]),
+        ("Freshwater microbial communities from Lake Mendota - viral genome information", []),
+        ("non-axenic culture inoculated with surface water from freshwater lake", ["culture"]),
+        ("non-axenic enrichment culture of lake water", ["enrichment"]),  # an enrichment is a culture
+        ("lake water from an aquaculture region", []),
+        ("Metagenome sample from freshwater metagenome Culture independent microbiome Potomac River", []),
     ],
 )
 def test_hard_filters(text, flags):
@@ -416,3 +425,38 @@ def test_a_sample_whose_own_evidence_points_only_elsewhere_is_off_biome():
     by = run_biome(metadata, rows, {"P1": "Freshwater rivers"})  # the study's own text doesn't rescue S1
     assert by["M1"]["tier"] == "D" and "off_biome" in by["M1"]["flags"].split(";")
     assert by["M2"]["tier"] == "C" and "off_biome" not in by["M2"]["flags"].split(";")  # mixed: a curator decides
+
+
+def test_run_flags_catch_amplicon_libraries_and_samples_without_a_usable_run():
+    from biome_finder.models import EnaRunLibrary
+
+    rows = [
+        {"record_accession": a, "data_type": "reads", "sample_accession": s, "flags": "", "read_count": n}
+        for a, s, n in [("R1", "S1", 5_000_000), ("R2", "S2", 90_000), ("R3", "S3", 150_000), ("R4", "S3", 4_000_000)]
+    ]
+    libs = [
+        EnaRunLibrary("R1", "OTHER", "PCR"),  # ERR1669025-like: amplicon under strategy OTHER
+        EnaRunLibrary("R2", "OTHER", "other"),
+        EnaRunLibrary("R3", "WGS", "RANDOM PCR"),  # PCR during library prep is not amplicon
+    ]
+    search.run_flags(rows, libs)
+    flags = {r["record_accession"]: r["flags"] for r in rows}
+    assert flags == {"R1": "amplicon_only", "R2": "sample_low_reads", "R3": "", "R4": ""}  # R4's sample has a big run
+    assert rows[2]["data_type_evidence"].endswith("ena.library_selection=RANDOM PCR")
+
+
+def test_a_generic_keyword_does_not_rescue_a_sample_gold_files_as_sediment():
+    sed = score.Evidence("third_party_biome", "gold:Gb1", "out", 1.0, 0.9, "… > Lake > Sediment")
+    word = score.Evidence("sample_metadata", "text", "in", 1.0, score.W_SAMPLE_KEYWORD, "freshwater")
+    envo = score.Evidence("sample_metadata", "env_medium", "in", 1.0, score.W_ENVO, "lake water")
+    assert score.off_biome([sed, word])  # SRR7514475: alias …_Sed, isolation_source "freshwater"
+    assert not score.off_biome([sed, envo])  # GOLD against an ENVO term: a conflict for a curator
+    assert not score.off_biome([word])
+
+
+def test_a_virome_study_flags_its_rows():
+    rows = [row("R1", "S1", study="PRJNA672207"), row("R2", "S2", study="P2")]
+    search.study_flags(
+        rows, {"PRJNA672207": "To investigate the freshwater virome from the Yangtze River", "P2": "lake water"}
+    )
+    assert [r["flags"] for r in rows] == ["virome", ""]
